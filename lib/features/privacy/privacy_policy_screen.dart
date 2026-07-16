@@ -6,7 +6,7 @@ import '../../core/theme/app_spacing.dart';
 
 /// The URL where your hosted privacy policy lives.
 /// Replace this with your actual GitHub Pages / Google Sites URL once published.
-const String kPrivacyPolicyUrl = 'https://prashant.github.io/momentum_ai/';
+const String kPrivacyPolicyUrl = 'https://chaubeyprashant.github.io/momentum_ai_privacy_policy/';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
