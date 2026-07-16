@@ -1,11 +1,11 @@
 {
-    "name": "momentum_ai",
-    "short_name": "momentum_ai",
+    "name": "HabitCoach AI",
+    "short_name": "HabitCoach",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Build habits, get AI coaching, transform your life.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

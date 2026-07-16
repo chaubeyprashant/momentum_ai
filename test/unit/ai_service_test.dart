@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:momentum_ai/core/utils/app_utils.dart';
-import 'package:momentum_ai/models/user_profile.dart';
-import 'package:momentum_ai/services/ai/ai_service.dart';
+import 'package:habitcoach_ai/core/utils/app_utils.dart';
+import 'package:habitcoach_ai/models/user_profile.dart';
+import 'package:habitcoach_ai/services/ai/ai_service.dart';
 
 void main() {
   group('AppUtils', () {

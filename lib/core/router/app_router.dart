@@ -17,18 +17,27 @@ import '../../features/roadmap/roadmap_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/vision_board/vision_board_screen.dart';
+import '../../features/privacy/privacy_policy_screen.dart';
 import '../../providers/app_providers.dart';
 
+class GoRouterRefreshNotifier extends ChangeNotifier {
+  GoRouterRefreshNotifier(Ref ref, ProviderListenable provider) {
+    ref.listen(provider, (_, __) => notifyListeners());
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final onboardingComplete = ref.watch(userProfileProvider).when(
+  return GoRouter(
+    initialLocation: RoutePaths.splash,
+    refreshListenable: GoRouterRefreshNotifier(ref, userProfileProvider),
+    redirect: (context, state) {
+      final profileState = ref.read(userProfileProvider);
+      final onboardingComplete = profileState.when(
         data: (profile) => profile?.onboardingComplete ?? false,
         loading: () => null,
         error: (_, __) => false,
       );
 
-  return GoRouter(
-    initialLocation: RoutePaths.splash,
-    redirect: (context, state) {
       final isSplash = state.matchedLocation == RoutePaths.splash;
       final isOnboarding = state.matchedLocation == RoutePaths.onboarding;
 
@@ -115,6 +124,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.settings,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.privacyPolicy,
+        builder: (context, state) => const PrivacyPolicyScreen(),
       ),
     ],
   );

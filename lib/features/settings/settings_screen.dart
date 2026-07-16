@@ -63,6 +63,28 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
             onTap: () => _confirmDelete(context, ref),
           ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Privacy Policy'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(RoutePaths.privacyPolicy),
+          ),
+          const _SectionHeader('About'),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('App Version'),
+            trailing: const Text('1.0.0', style: TextStyle(color: Colors.grey)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.star_outline),
+            title: const Text('Rate HabitCoach AI'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Coming soon on Play Store!')),
+              );
+            },
+          ),
           const SizedBox(height: AppSpacing.xxl),
         ],
       ),

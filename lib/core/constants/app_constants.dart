@@ -1,9 +1,9 @@
-/// Global app constants for Ascend AI.
+/// Global app constants for HabitCoach AI.
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Ascend AI';
-  static const String appTagline = 'Become who you\'re meant to be';
+  static const String appName = 'HabitCoach AI';
+  static const String appTagline = 'Build habits. Get coached. Transform.';
 
   // Hive box names
   static const String userBox = 'user_box';

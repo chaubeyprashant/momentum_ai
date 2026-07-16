@@ -99,7 +99,7 @@ class MockAiProvider implements AiProvider {
     double temperature = 0.7,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 800));
-    return _generateMockResponse(userPrompt);
+    return _generateMockResponse(userPrompt, systemPrompt);
   }
 
   @override
@@ -111,15 +111,21 @@ class MockAiProvider implements AiProvider {
       (m) => m['role'] == 'user',
       orElse: () => {'content': ''},
     );
+    final system = messages.firstWhere(
+      (m) => m['role'] == 'system',
+      orElse: () => {'content': ''},
+    );
     return complete(
-      systemPrompt: '',
+      systemPrompt: system['content'] ?? '',
       userPrompt: lastUser['content'] ?? '',
     );
   }
 
-  String _generateMockResponse(String prompt) {
+  String _generateMockResponse(String prompt, String systemPrompt) {
     final lower = prompt.toLowerCase();
-    if (lower.contains('roadmap') || lower.contains('generate')) {
+    final systemLower = systemPrompt.toLowerCase();
+    
+    if (systemLower.contains('roadmap')) {
       return '''
 {
   "longTermGoal": "Become a proficient AI Engineer",
@@ -129,8 +135,26 @@ class MockAiProvider implements AiProvider {
   "todaysMission": "Complete Python data structures chapter and implement a binary search tree"
 }''';
     }
-    if (lower.contains('lazy') || lower.contains('motivat')) {
+    
+    if (lower.contains('coach') || lower.contains('motivat') || lower.contains('daily') || systemLower.contains('coach')) {
       return 'Remember why you started this journey. Every expert was once a beginner who refused to give up. Your future self is counting on today\'s effort — even 30 minutes counts.';
+    }
+    if (lower.contains('report') || lower.contains('weekly')) {
+      return '''
+## Weekly Progress Report
+
+### 🌅 Achievements
+* Completed your daily missions consistently this week.
+* Built strong habits around focused work.
+
+### ⚠️ Areas of Focus
+* Make sure to log your reflections daily.
+* Try to keep daily focus hours within your target range.
+
+### 🎯 Next Week's Goal
+* Focus on completing one major exercise daily.
+* Maintain your streak!
+''';
     }
     if (lower.contains('quiz')) {
       return 'Here\'s a quick quiz:\n1. What is gradient descent?\n2. Explain overfitting.\n3. What\'s the difference between supervised and unsupervised learning?\n\nTake your time — I\'ll review your answers!';

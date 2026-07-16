@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -17,15 +18,24 @@ class HiveService {
   bool _initialized = false;
 
   Future<void> init() async {
-    if (_initialized) return;
+    if (_initialized) {
+      return;
+    }
     await Hive.initFlutter();
-    await Future.wait([
-      Hive.openBox(AppConstants.userBox),
-      Hive.openBox(AppConstants.goalsBox),
-      Hive.openBox(AppConstants.habitsBox),
-      Hive.openBox(AppConstants.journalBox),
-      Hive.openBox(AppConstants.settingsBox),
-    ]);
+    
+    try {
+      await Future.wait([
+        Hive.openBox(AppConstants.userBox),
+        Hive.openBox(AppConstants.goalsBox),
+        Hive.openBox(AppConstants.habitsBox),
+        Hive.openBox(AppConstants.journalBox),
+        Hive.openBox(AppConstants.settingsBox),
+      ]);
+    } catch (e, stack) {
+      // Keep error logging for robustness
+      debugPrint("Error opening Hive boxes: $e");
+      debugPrint(stack.toString());
+    }
     _initialized = true;
   }
 

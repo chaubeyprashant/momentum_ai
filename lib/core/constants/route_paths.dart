@@ -16,4 +16,5 @@ class RoutePaths {
   static const String profile = '/profile';
   static const String settings = '/settings';
   static const String roadmap = '/roadmap';
+  static const String privacyPolicy = '/privacy-policy';
 }
