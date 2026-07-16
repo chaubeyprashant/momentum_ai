@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy | HabitCoach AI</title>
+    <meta name="description" content="Privacy Policy for HabitCoach AI. Learn how we handle, store, and secure your habit building, coaching, and journal data.">
+    <!-- Google Fonts - Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --secondary: #a855f7;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --font-display: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.12) 0%, transparent 40%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .logo-container {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 20px;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.3);
+            font-size: 2.25rem;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #ffffff, #c7d2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        main {
+            width: 100%;
+            max-width: 800px;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+        }
+
+        .policy-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .last-updated {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            padding: 0.25rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--primary);
+            margin-bottom: 2rem;
+        }
+
+        section {
+            margin-bottom: 2.5rem;
+        }
+
+        section:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-icon {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+
+        h2 {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.01em;
+        }
+
+        p, ul {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.65;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        li::before {
+            content: "•";
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.25rem;
+            position: absolute;
+            left: 0;
+            top: -2px;
+        }
+
+        .highlight-box {
+            background: rgba(99, 102, 241, 0.04);
+            border-left: 4px solid var(--primary);
+            padding: 1.25rem;
+            border-radius: 0 12px 12px 0;
+            margin: 1.5rem 0;
+        }
+
+        .highlight-box p {
+            margin-bottom: 0;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .grid-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .grid-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .grid-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(99, 102, 241, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .grid-card h3 {
+            font-family: var(--font-display);
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .grid-card p {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+
+        .badge-local { color: var(--accent-green); }
+        .badge-cloud { color: var(--primary); }
+
+        .btn-contact {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #ffffff;
+            text-decoration: none;
+            padding: 0.85rem 1.75rem;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .btn-contact:hover {
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+            transform: translateY(-2px);
+        }
+
+        footer {
+            margin-top: 4rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+            body {
+                padding: 1.5rem 0.75rem;
+            }
+            
+            .policy-card {
+                padding: 2rem 1.5rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .grid-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">🎯</div>
+        <h1>HabitCoach AI</h1>
+        <div class="subtitle">Your Privacy is Our Priority</div>
+    </header>
+
+    <main>
+        <div class="policy-card">
+            <span class="last-updated">Last Updated: July 16, 2026</span>
+
+            <section id="introduction">
+                <div class="section-header">
+                    <span class="section-icon">🛡️</span>
+                    <h2>Introduction</h2>
+                </div>
+                <p>Welcome to <strong>HabitCoach AI</strong>. We are committed to protecting your personal information and your right to privacy. This Privacy Policy describes how we collect, use, and safeguard your data when you use our mobile application.</p>
+                <p>By using HabitCoach AI, you agree to the collection and use of information in accordance with this policy. If you do not agree with any terms of this policy, please do not use the app.</p>
+            </section>
+
+            <section id="data-collection">
+                <div class="section-header">
+                    <span class="section-icon">📥</span>
+                    <h2>What We Collect & Store</h2>
+                </div>
+                <p>To provide our services, HabitCoach AI processes data that you voluntarily input. The types of data depend on how you interact with the app:</p>
+                
+                <div class="grid-cards">
+                    <div class="grid-card">
+                        <h3><span class="badge-local">💾</span> Local-First Data</h3>
+                        <p>Your habit goals, motivation statements, streaks, routine logs, Pomodoro focus session durations, and journal entries. This data is stored locally on your device.</p>
+                    </div>
+                    <div class="grid-card">
+                        <h3><span class="badge-cloud">☁️</span> Cloud Account Data</h3>
+                        <p>If you register/log in via Firebase Authentication, we collect your email address, password, and authentication tokens. This enables data synchronization across your devices.</p>
+                    </div>
+                </div>
+
+                <div class="highlight-box">
+                    <p>💡 All local data is stored securely on your device using Hive. It remains private and is only transmitted to secure cloud services if you opt-in for remote sync or account login.</p>
+                </div>
+            </section>
+
+            <section id="ai-coaching">
+                <div class="section-header">
+                    <span class="section-icon">🧠</span>
+                    <h2>AI Coaching Data</h2>
+                </div>
+                <p>HabitCoach AI features an intelligent AI Coach to help you structure habits and routines. When you chat with the coach or request a roadmap:</p>
+                <ul>
+                    <li>Your goals, motivators, and chat messages are sent to an AI provider (e.g., Google Gemini API) to generate personalized responses.</li>
+                    <li><strong>No Personally Identifiable Information (PII)</strong>, such as your email or account identifier, is ever sent to or shared with the AI models.</li>
+                    <li>Information is transmitted securely via HTTPS encrypted channels.</li>
+                </ul>
+            </section>
+
+            <section id="third-party-services">
+                <div class="section-header">
+                    <span class="section-icon">🔗</span>
+                    <h2>Third-Party Services</h2>
+                </div>
+                <p>We use trusted third-party cloud services to optimize performance and synchronization:</p>
+                <ul>
+                    <li><strong>Firebase Authentication & Firestore:</strong> To securely authenticate your user identity and store/synchronize your habit data across devices.</li>
+                    <li><strong>Firebase Analytics & Crashlytics:</strong> To collect anonymized app performance and usage metrics (e.g., page views, crash records). This data does not contain PII and is used solely to resolve bugs and improve application reliability.</li>
+                </ul>
+            </section>
+
+            <section id="data-security">
+                <div class="section-header">
+                    <span class="section-icon">🔒</span>
+                    <h2>Data Security</h2>
+                </div>
+                <p>We implement standard, industry-accepted security practices to protect all data stored locally on your device and in transit to our backend systems. However, please remember that no method of transmission over the internet or method of electronic storage is 100% secure.</p>
+            </section>
+
+            <section id="data-deletion">
+                <div class="section-header">
+                    <span class="section-icon">🗑️</span>
+                    <h2>Your Rights & Data Deletion</h2>
+                </div>
+                <p>You have full ownership of your data. You have the right to access, modify, or permanently delete your information at any time:</p>
+                <div class="highlight-box" style="border-left-color: var(--accent-red); background: rgba(239, 68, 68, 0.04);">
+                    <p style="color: #ffffff;">To delete all your information permanently:</p>
+                    <p style="font-size: 0.95rem; margin-top: 0.5rem; color: var(--text-secondary);">
+                        Open HabitCoach AI → Navigate to <strong>Settings</strong> → Under **Data & Privacy**, tap <strong>Delete Account</strong>. This action is irreversible and immediately wipes your account and all associated remote and local data.
+                    </p>
+                </div>
+            </section>
+
+            <section id="children-privacy">
+                <div class="section-header">
+                    <span class="section-icon">👶</span>
+                    <h2>Children's Privacy</h2>
+                </div>
+                <p>Our service is not intended for children under the age of 13. We do not knowingly collect or solicit personal information from anyone under 13. If we discover that a child under 13 has provided us with personal information, we immediately delete it from our servers.</p>
+            </section>
+
+            <section id="policy-updates">
+                <div class="section-header">
+                    <span class="section-icon">🔄</span>
+                    <h2>Changes to this Policy</h2>
+                </div>
+                <p>We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date. You are advised to review this Privacy Policy periodically for any changes.</p>
+            </section>
+
+            <section id="contact-us">
+                <div class="section-header">
+                    <span class="section-icon">✉️</span>
+                    <h2>Contact Us</h2>
+                </div>
+                <p>If you have any questions or suggestions about our Privacy Policy, please feel free to reach out to our support team:</p>
+                <a href="mailto:habitcoach.ai.support@gmail.com" class="btn-contact">
+                    habitcoach.ai.support@gmail.com
+                </a>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 HabitCoach AI. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>
