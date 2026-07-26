@@ -88,6 +88,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ),
           _buildSection(
             context,
+            icon: Icons.timer_outlined,
+            title: 'Data Retention',
+            body:
+                'Local data is kept as long as the app is installed. Cloud account data '
+                'is retained while your account is active. Anonymous analytics data is '
+                'kept temporarily before being automatically deleted.',
+          ),
+          _buildSection(
+            context,
             icon: Icons.delete_outline,
             title: 'Your Rights',
             body:
@@ -122,7 +131,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Last updated: July 2025',
+            'Last updated: July 2026',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context)
                       .colorScheme
