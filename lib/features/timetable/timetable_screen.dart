@@ -4,6 +4,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/constants/route_paths.dart';
 import '../../core/extensions/context_extensions.dart';
 import '../../core/theme/app_colors.dart';
@@ -13,6 +14,7 @@ import '../../core/utils/app_logger.dart';
 import '../../models/scheduled_task.dart';
 import '../../models/user_profile.dart';
 import '../../providers/app_providers.dart';
+import '../../shared/widgets/achievements_grid.dart';
 
 class TimetableScreen extends ConsumerWidget {
   const TimetableScreen({super.key});
@@ -54,9 +56,18 @@ class TimetableScreen extends ConsumerWidget {
           final completed =
               tasks.where((t) => t.status == TaskStatus.verified).length;
           final rate = tasks.isEmpty ? 0.0 : completed / tasks.length * 100;
+          final bottomPadding = AppSpacing.pagePadding.bottom +
+              kFloatingActionButtonMargin +
+              64 +
+              MediaQuery.paddingOf(context).bottom;
 
           return ListView(
-            padding: AppSpacing.pagePadding,
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding.left,
+              AppSpacing.pagePadding.top,
+              AppSpacing.pagePadding.right,
+              bottomPadding,
+            ),
             children: [
               Card(
                 child: Padding(
@@ -239,6 +250,39 @@ class _TaskTile extends ConsumerWidget {
 
   final ScheduledTask task;
 
+  Future<void> _markComplete(BuildContext context, WidgetRef ref) async {
+    if (task.status == TaskStatus.verified) return;
+    if (!task.canMarkComplete) {
+      context.showSnackBar(task.availabilityMessage);
+      return;
+    }
+
+    final result = await ref.read(timetableProvider.notifier).markComplete(task.id);
+    ref.invalidate(userProfileProvider);
+    if (!context.mounted) return;
+
+    if (result.hasRewards) {
+      showGamificationReward(
+        context,
+        xpEarned: result.xpEarned,
+        leveledUp: result.leveledUp,
+        newLevel: result.newLevel,
+        achievements: result.newAchievements,
+        messages: result.messages,
+      );
+    } else {
+      context.showSnackBar('Marked complete!');
+    }
+  }
+
+  void _openSnapScreen(BuildContext context) {
+    if (!task.hasStarted) {
+      context.showSnackBar(task.availabilityMessage);
+      return;
+    }
+    context.push('${RoutePaths.taskVerify}/${task.id}');
+  }
+
   Color _statusColor() => switch (task.status) {
         TaskStatus.verified => AppColors.success,
         TaskStatus.rejected => AppColors.error,
@@ -262,6 +306,14 @@ class _TaskTile extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('$time • ${task.durationMinutes} min • ${task.category.label}'),
+            if (!task.hasStarted && task.status != TaskStatus.verified)
+              Text(
+                task.availabilityMessage,
+                style: TextStyle(
+                  color: AppColors.warning.withValues(alpha: 0.9),
+                  fontSize: 12,
+                ),
+              ),
             if (task.verificationFeedback != null)
               Text(
                 task.verificationFeedback!,
@@ -275,27 +327,64 @@ class _TaskTile extends ConsumerWidget {
           ],
         ),
         trailing: _trailing(context, ref),
-        onTap: task.status == TaskStatus.verified
-            ? null
-            : () => context.push('${RoutePaths.taskVerify}/${task.id}'),
+        onTap: task.canMarkComplete
+            ? () => _markComplete(context, ref)
+            : () => context.showSnackBar(task.availabilityMessage),
       ),
     );
   }
 
   Widget? _trailing(BuildContext context, WidgetRef ref) {
+    if (!task.hasStarted && task.status != TaskStatus.verified) {
+      return Text(
+        DateFormat.jm().format(task.scheduledAt),
+        style: TextStyle(
+          color: AppColors.warning.withValues(alpha: 0.9),
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
     return switch (task.status) {
-      TaskStatus.verified => const Icon(Icons.check_circle, color: AppColors.success),
-      TaskStatus.rejected => TextButton(
-          onPressed: () => context.push('${RoutePaths.taskVerify}/${task.id}'),
+      TaskStatus.verified when task.photoPath != null =>
+        const Icon(Icons.check_circle, color: AppColors.success),
+      TaskStatus.verified when task.canSnapForBonus => TextButton(
+          onPressed: () => _openSnapScreen(context),
+          child: Text('Snap +${AppConstants.xpPhotoVerifyBonus}'),
+        ),
+      TaskStatus.verified =>
+        const Icon(Icons.check_circle, color: AppColors.success),
+      TaskStatus.rejected when task.canSnapForBonus => TextButton(
+          onPressed: () => _openSnapScreen(context),
           child: const Text('Retry'),
         ),
       TaskStatus.missed => TextButton(
-          onPressed: () => context.push('${RoutePaths.taskVerify}/${task.id}'),
-          child: const Text('Snap'),
+          onPressed: task.canMarkComplete
+              ? () => _markComplete(context, ref)
+              : null,
+          child: const Text('Done'),
         ),
-      _ => task.requiresPhotoVerification
-          ? const Icon(Icons.camera_alt_outlined)
-          : null,
+      _ when task.canSnapForBonus => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(
+              onPressed: task.canSnapNow ? () => _openSnapScreen(context) : null,
+              child: const Icon(Icons.camera_alt_outlined, size: 20),
+            ),
+            TextButton(
+              onPressed: task.canMarkComplete
+                  ? () => _markComplete(context, ref)
+                  : null,
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      _ => TextButton(
+          onPressed: task.canMarkComplete
+              ? () => _markComplete(context, ref)
+              : null,
+          child: const Text('Done'),
+        ),
     };
   }
 }
@@ -337,8 +426,10 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
           ),
           TextField(
             controller: _hintController,
-            decoration: const InputDecoration(
-              labelText: 'What should the photo show?',
+            decoration: InputDecoration(
+              labelText: _category == TaskCategory.screenBreak
+                  ? 'Notes (optional)'
+                  : 'What should the photo show? (optional)',
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -392,6 +483,10 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                   verificationHint: _hintController.text.trim().isEmpty
                       ? null
                       : _hintController.text.trim(),
+                  requiresPhotoVerification: ScheduledTask.shouldRequirePhoto(
+                    category: _category,
+                    title: _titleController.text.trim(),
+                  ),
                 ),
               );
             },

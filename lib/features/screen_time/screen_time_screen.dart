@@ -114,7 +114,7 @@ class ScreenTimeScreen extends ConsumerWidget {
                 padding: EdgeInsets.all(AppSpacing.md),
                 child: Text(
                   'Tip: Pair screen time limits with timetable tasks. '
-                  'Schedule offline activities and verify them with a photo snap!',
+                  'Schedule offline activities — tap to complete, snap for bonus XP!',
                 ),
               ),
             ),

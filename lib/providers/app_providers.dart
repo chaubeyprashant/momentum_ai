@@ -15,7 +15,9 @@ import '../services/ai/gemini_config.dart';
 import '../services/feedback/feedback_service.dart';
 import '../services/firebase/firestore_service.dart';
 import '../services/firebase/user_sync_service.dart';
+import '../services/gamification/gamification_service.dart';
 import '../services/storage/hive_service.dart';
+import '../models/gamification.dart';
 
 // Services
 final hiveServiceProvider = Provider<HiveService>((ref) => HiveService.instance);
@@ -44,6 +46,14 @@ final geminiConfiguredProvider = FutureProvider<bool>((ref) async {
 
 final feedbackServiceProvider = Provider<FeedbackService>((ref) {
   return FeedbackService();
+});
+
+final gamificationServiceProvider = Provider<GamificationService>((ref) {
+  return GamificationService(hive: ref.watch(hiveServiceProvider));
+});
+
+final achievementsProvider = Provider<List<Achievement>>((ref) {
+  return ref.watch(gamificationServiceProvider).getAllAchievements();
 });
 
 final firestoreServiceProvider = Provider<FirestoreService>((ref) {
@@ -117,12 +127,16 @@ class UserProfileNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final UserRepository _repo;
 
   Future<void> load() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
-    state = AsyncValue.data(await _repo.getProfile());
+    final profile = await _repo.getProfile();
+    if (!mounted) return;
+    state = AsyncValue.data(profile);
   }
 
   Future<void> save(UserProfile profile) async {
     await _repo.saveProfile(profile);
+    if (!mounted) return;
     state = AsyncValue.data(profile);
   }
 
@@ -149,19 +163,25 @@ class RoadmapNotifier extends StateNotifier<AsyncValue<Roadmap?>> {
   final GoalRepository _repo;
 
   Future<void> load() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
-    state = AsyncValue.data(await _repo.getRoadmap());
+    final roadmap = await _repo.getRoadmap();
+    if (!mounted) return;
+    state = AsyncValue.data(roadmap);
   }
 
   Future<Roadmap> generate(UserProfile profile) async {
+    if (!mounted) return Future.error(StateError('Notifier disposed'));
     state = const AsyncValue.loading();
     final roadmap = await _repo.generateRoadmap(profile);
+    if (!mounted) return roadmap;
     state = AsyncValue.data(roadmap);
     return roadmap;
   }
 
   Future<void> completeMission(String missionId) async {
     final updated = await _repo.completeMission(missionId);
+    if (!mounted) return;
     state = AsyncValue.data(updated);
   }
 }
@@ -224,24 +244,50 @@ int _calculateDaysBehind(UserProfile profile, List<AccountabilityRecord> records
 // Habits State
 final habitsProvider =
     StateNotifierProvider<HabitsNotifier, AsyncValue<List<Habit>>>((ref) {
-  return HabitsNotifier(ref.watch(habitRepositoryProvider));
+  return HabitsNotifier(
+    ref.watch(habitRepositoryProvider),
+    ref.watch(gamificationServiceProvider),
+    ref.watch(userRepositoryProvider),
+  );
 });
 
 class HabitsNotifier extends StateNotifier<AsyncValue<List<Habit>>> {
-  HabitsNotifier(this._repo) : super(const AsyncValue.loading()) {
+  HabitsNotifier(this._repo, this._gamification, this._userRepo)
+      : super(const AsyncValue.loading()) {
     load();
   }
 
   final HabitRepository _repo;
+  final GamificationService _gamification;
+  final UserRepository _userRepo;
 
   Future<void> load() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
-    state = AsyncValue.data(await _repo.getHabits());
+    final habits = await _repo.getHabits();
+    if (!mounted) return;
+    state = AsyncValue.data(habits);
   }
 
-  Future<void> toggle(String habitId) async {
+  Future<GamificationResult> toggle(String habitId) async {
+    final habits = state.valueOrNull ?? await _repo.getHabits();
+    final habit = habits.firstWhere((h) => h.id == habitId);
+    final wasCompleted = habit.isCompletedToday;
+
     await _repo.toggleHabit(habitId);
     await load();
+
+    if (!mounted || wasCompleted) return const GamificationResult();
+
+    final updatedHabits = state.valueOrNull ?? [];
+    final profile = await _userRepo.getProfile();
+    if (!mounted) return const GamificationResult();
+
+    return _gamification.processHabitCompletion(
+      profile: profile,
+      habits: updatedHabits,
+      completed: true,
+    );
   }
 }
 
@@ -262,20 +308,31 @@ class OnboardingDraftNotifier extends StateNotifier<UserProfile?> {
 // Timetable / scheduled tasks
 final timetableProvider =
     StateNotifierProvider<TimetableNotifier, AsyncValue<List<ScheduledTask>>>((ref) {
-  return TimetableNotifier(ref.watch(taskRepositoryProvider));
+  return TimetableNotifier(
+    ref.watch(taskRepositoryProvider),
+    ref.watch(gamificationServiceProvider),
+    ref.watch(userRepositoryProvider),
+  );
 });
 
 class TimetableNotifier extends StateNotifier<AsyncValue<List<ScheduledTask>>> {
-  TimetableNotifier(this._repo) : super(const AsyncValue.loading()) {
+  TimetableNotifier(this._repo, this._gamification, this._userRepo)
+      : super(const AsyncValue.loading()) {
     load();
   }
 
   final TaskRepository _repo;
+  final GamificationService _gamification;
+  final UserRepository _userRepo;
 
   Future<void> load() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
+    await _repo.ensureTaskNotifications();
     await _repo.markMissedTasks();
-    state = AsyncValue.data(await _repo.getTodayTasks());
+    final tasks = await _repo.getTodayTasks();
+    if (!mounted) return;
+    state = AsyncValue.data(tasks);
   }
 
   Future<void> addTask(ScheduledTask task) async {
@@ -288,26 +345,84 @@ class TimetableNotifier extends StateNotifier<AsyncValue<List<ScheduledTask>>> {
     await load();
   }
 
-  Future<ScheduledTask> verifyTask({
+  Future<GamificationResult> markComplete(String taskId) async {
+    final tasks = state.valueOrNull ?? await _repo.getTodayTasks();
+    final task = tasks.cast<ScheduledTask?>().firstWhere(
+          (t) => t?.id == taskId,
+          orElse: () => null,
+        );
+    if (task == null || task.status == TaskStatus.verified) {
+      return const GamificationResult();
+    }
+    if (!task.canMarkComplete) {
+      return GamificationResult(messages: [task.availabilityMessage]);
+    }
+
+    await _repo.markComplete(taskId);
+    await load();
+
+    final profile = await _userRepo.getProfile();
+    if (!mounted) return const GamificationResult();
+
+    return _gamification.processTaskCompletion(
+      profile: profile,
+      includeBase: true,
+      includePhotoBonus: false,
+    );
+  }
+
+  Future<({ScheduledTask task, GamificationResult rewards})> verifyTask({
     required String taskId,
     required List<int> imageBytes,
     required String photoPath,
   }) async {
+    final tasks = state.valueOrNull ?? await _repo.getTodayTasks();
+    final task = tasks.cast<ScheduledTask?>().firstWhere(
+          (t) => t?.id == taskId,
+          orElse: () => null,
+        );
+    if (task == null) {
+      throw StateError('Task not found');
+    }
+    if (!task.hasStarted) {
+      throw StateError(task.availabilityMessage);
+    }
+
+    final wasVerified = task.status == TaskStatus.verified;
+    final hadPhotoBonus = task.photoPath != null;
+
     final updated = await _repo.verifyWithPhoto(
       taskId: taskId,
       imageBytes: Uint8List.fromList(imageBytes),
       photoPath: photoPath,
     );
     await load();
-    return updated;
+
+    if (updated.status != TaskStatus.verified || hadPhotoBonus) {
+      return (task: updated, rewards: const GamificationResult());
+    }
+
+    final profile = await _userRepo.getProfile();
+    if (!mounted) {
+      return (task: updated, rewards: const GamificationResult());
+    }
+
+    final rewards = await _gamification.processTaskCompletion(
+      profile: profile,
+      includeBase: !wasVerified,
+      includePhotoBonus: true,
+    );
+    return (task: updated, rewards: rewards);
   }
 
   Future<void> generateFromProfile(UserProfile profile) async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
     try {
       await _repo.generateFromProfile(profile);
       await load();
     } catch (e, stack) {
+      if (!mounted) return;
       state = AsyncValue.error(e, stack);
       rethrow;
     }
@@ -345,9 +460,11 @@ class ScreenTimeNotifier extends StateNotifier<AsyncValue<ScreenTimeState>> {
   final ScreenTimeRepository _repo;
 
   Future<void> load() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
     final goal = await _repo.getGoal();
     final today = await _repo.getTodayLog();
+    if (!mounted) return;
     state = AsyncValue.data(ScreenTimeState(goal: goal, todayLog: today));
   }
 

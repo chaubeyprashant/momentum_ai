@@ -336,9 +336,9 @@ Reply JSON only: {"verified": bool, "confidence": 0-1, "feedback": "message"}
       systemPrompt: '''
 Generate a daily timetable for anyone — students, parents, workers, retirees, etc.
 Return ONLY valid JSON array with objects:
-{"title": "...", "description": "...", "hour": 7, "minute": 0, "durationMinutes": 30, "category": "health|study|work|chores|creative|social|screenBreak|other", "verificationHint": "what photo should show"}
+{"title": "...", "description": "...", "hour": 7, "minute": 0, "durationMinutes": 30, "category": "health|study|work|chores|creative|social|screenBreak|other", "verificationHint": "what photo should show (optional for screenBreak)"}
 Create 5-8 realistic tasks spread across the day totaling about $hoursPerDay hours.
-Include at least one screen-break / digital detox block if goal relates to screen time.
+For screen time / phone / digital detox goals: use category "screenBreak" for phone-free blocks (no photo needed). Use other categories for offline activities that can be photo-verified (reading, exercise, chores).
 ''',
       userPrompt: '''
 Goal: $goal

@@ -37,7 +37,12 @@ class TaskRepository {
 
   Future<ScheduledTask> addTask(ScheduledTask task) async {
     final notificationId = await _notifications.scheduleTaskReminder(task);
-    final withNotification = task.copyWith(notificationId: notificationId);
+    final missedCallNotificationId =
+        await _notifications.scheduleMissedTaskCall(task);
+    final withNotification = task.copyWith(
+      notificationId: notificationId,
+      missedCallNotificationId: missedCallNotificationId,
+    );
     final tasks = await getTasks();
     tasks.add(withNotification);
     await _hive.saveScheduledTasks(tasks);
@@ -50,11 +55,16 @@ class TaskRepository {
     final index = tasks.indexWhere((t) => t.id == task.id);
     if (index == -1) throw StateError('Task not found');
 
-    if (task.notificationId != null) {
-      await _notifications.cancelTaskReminder(task.notificationId!);
-    }
+    final existing = tasks[index];
+    await _notifications.cancelTaskNotifications(existing);
+
     final notificationId = await _notifications.scheduleTaskReminder(task);
-    final updated = task.copyWith(notificationId: notificationId);
+    final missedCallNotificationId =
+        await _notifications.scheduleMissedTaskCall(task);
+    final updated = task.copyWith(
+      notificationId: notificationId,
+      missedCallNotificationId: missedCallNotificationId,
+    );
     tasks[index] = updated;
     await _hive.saveScheduledTasks(tasks);
     await _sync.syncTask(updated);
@@ -64,12 +74,30 @@ class TaskRepository {
   Future<void> deleteTask(String taskId) async {
     final tasks = await getTasks();
     final task = tasks.firstWhere((t) => t.id == taskId);
-    if (task.notificationId != null) {
-      await _notifications.cancelTaskReminder(task.notificationId!);
-    }
+    await _notifications.cancelTaskNotifications(task);
     tasks.removeWhere((t) => t.id == taskId);
     await _hive.saveScheduledTasks(tasks);
     await _sync.deleteTask(taskId);
+  }
+
+  Future<ScheduledTask> markComplete(String taskId) async {
+    final tasks = await getTasks();
+    final index = tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) throw StateError('Task not found');
+
+    final task = tasks[index];
+    await _notifications.cancelTaskNotifications(task);
+
+    final updated = task.copyWith(
+      status: TaskStatus.verified,
+      verifiedAt: DateTime.now(),
+      verificationFeedback: 'Marked complete',
+    );
+
+    tasks[index] = updated;
+    await _hive.saveScheduledTasks(tasks);
+    await _sync.syncTask(updated);
+    return updated;
   }
 
   Future<ScheduledTask> verifyWithPhoto({
@@ -95,10 +123,42 @@ class TaskRepository {
       verifiedAt: DateTime.now(),
     );
 
+    if (result.verified) {
+      await _notifications.cancelTaskNotifications(task);
+    }
+
     tasks[index] = updated;
     await _hive.saveScheduledTasks(tasks);
     await _sync.syncTask(updated);
     return updated;
+  }
+
+  Future<void> ensureTaskNotifications() async {
+    final tasks = await getTasks();
+    var changed = false;
+    for (var i = 0; i < tasks.length; i++) {
+      final task = tasks[i];
+      if (task.status != TaskStatus.pending && task.status != TaskStatus.missed) {
+        continue;
+      }
+      if (!task.isToday) continue;
+
+      final notificationId = await _notifications.scheduleTaskReminder(task);
+      final missedCallNotificationId =
+          await _notifications.scheduleMissedTaskCall(task);
+      final updated = task.copyWith(
+        notificationId: notificationId,
+        missedCallNotificationId: missedCallNotificationId,
+      );
+      if (updated.notificationId != task.notificationId ||
+          updated.missedCallNotificationId != task.missedCallNotificationId) {
+        tasks[i] = updated;
+        changed = true;
+      }
+    }
+    if (changed) {
+      await _hive.saveScheduledTasks(tasks);
+    }
   }
 
   Future<void> markMissedTasks() async {
@@ -107,12 +167,13 @@ class TaskRepository {
     for (var i = 0; i < tasks.length; i++) {
       final task = tasks[i];
       if (task.isOverdue && task.status == TaskStatus.pending) {
+        await _notifications.cancelMissedTaskCall(
+          task.missedCallNotificationId ??
+              task.id.hashCode.abs() % 100000 + 100000,
+        );
         tasks[i] = task.copyWith(status: TaskStatus.missed);
         changed = true;
-        await _notifications.showInstantReminder(
-          title: 'Missed: ${task.title}',
-          body: 'You missed your scheduled task. Snap a photo when you complete it!',
-        );
+        await _notifications.showMissedTaskCall(task);
       }
     }
     if (changed) {
@@ -149,15 +210,19 @@ class TaskRepository {
           orElse: () => TaskCategory.other,
         );
 
+        final title = item['title'] as String? ?? 'Task';
         final task = ScheduledTask(
           id: _uuid.v4(),
-          title: item['title'] as String? ?? 'Task',
+          title: title,
           description: item['description'] as String?,
           scheduledAt: today.add(Duration(hours: hour, minutes: minute)),
           durationMinutes: item['durationMinutes'] as int? ?? 30,
           category: category,
           verificationHint: item['verificationHint'] as String?,
-          requiresPhotoVerification: category != TaskCategory.screenBreak,
+          requiresPhotoVerification: ScheduledTask.shouldRequirePhoto(
+            category: category,
+            title: title,
+          ),
         );
         tasks.add(await addTask(task));
       }

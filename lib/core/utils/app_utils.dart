@@ -37,5 +37,28 @@ class AppUtils {
     return level;
   }
 
+  static int xpProgressInLevel(int xp, int level) {
+    final currentLevelXp = xpForLevel(level);
+    return xp - currentLevelXp;
+  }
+
+  static int xpNeededForNextLevel(int level) {
+    return xpForLevel(level + 1) - xpForLevel(level);
+  }
+
+  static double xpProgressPercent(int xp, int level) {
+    final needed = xpNeededForNextLevel(level);
+    if (needed <= 0) return 1;
+    return (xpProgressInLevel(xp, level) / needed).clamp(0.0, 1.0);
+  }
+
+  static String rankTitle(int level) {
+    if (level >= 15) return 'Legend';
+    if (level >= 10) return 'Champion';
+    if (level >= 6) return 'Veteran';
+    if (level >= 3) return 'Apprentice';
+    return 'Rookie';
+  }
+
   static double clampPercent(double value) => value.clamp(0.0, 100.0);
 }

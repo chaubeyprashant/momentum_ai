@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../models/gamification.dart';
 import '../../models/accountability.dart';
 import '../../models/goal.dart';
 import '../../models/habit.dart';
@@ -182,6 +183,24 @@ class HiveService {
     return data
         .map((l) => ScreenTimeLog.fromJson(l as Map<String, dynamic>))
         .toList();
+  }
+
+  // Gamification
+  Future<void> saveGamificationStats(GamificationStats stats) async {
+    await _settingsBox.put('gamification_stats', stats.toJson());
+  }
+
+  GamificationStats getGamificationStats() {
+    final data = _settingsBox.get('gamification_stats') as Map<dynamic, dynamic>?;
+    if (data == null) return const GamificationStats();
+    return GamificationStats.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  bool getMissedTaskCallsEnabled() =>
+      _settingsBox.get('missed_task_calls_enabled', defaultValue: true) as bool;
+
+  Future<void> setMissedTaskCallsEnabled(bool enabled) async {
+    await _settingsBox.put('missed_task_calls_enabled', enabled);
   }
 
   Future<void> clearAll() async {

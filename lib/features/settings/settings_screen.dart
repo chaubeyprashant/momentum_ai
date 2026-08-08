@@ -13,6 +13,7 @@ import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
 import '../../services/ai/gemini_config.dart';
 import '../../services/firebase/firebase_service.dart';
+import '../../services/storage/hive_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -24,11 +25,13 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _aiAvailable = false;
   String _aiModel = GeminiConfig.defaultModel;
+  bool _missedTaskCallsEnabled = true;
 
   @override
   void initState() {
     super.initState();
     _loadAiStatus();
+    _missedTaskCallsEnabled = HiveService.instance.getMissedTaskCallsEnabled();
   }
 
   Future<void> _loadAiStatus() async {
@@ -99,6 +102,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: const Text('Task reminders from your timetable'),
             value: true,
             onChanged: (_) {},
+          ),
+          SwitchListTile(
+            title: const Text('Missed Task Reminder Calls'),
+            subtitle: const Text(
+              'Urgent call-style alerts when you miss a scheduled task',
+            ),
+            value: _missedTaskCallsEnabled,
+            onChanged: (value) async {
+              setState(() => _missedTaskCallsEnabled = value);
+              await HiveService.instance.setMissedTaskCallsEnabled(value);
+              if (value) {
+                await ref.read(timetableProvider.notifier).load();
+              }
+            },
           ),
           SwitchListTile(
             title: const Text('Push Notifications'),

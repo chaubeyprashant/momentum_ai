@@ -205,19 +205,56 @@ class HabitRepository {
 
   Future<void> toggleHabit(String habitId) async {
     final habits = await getHabits();
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final yesterday = todayDate.subtract(const Duration(days: 1));
+
     final updated = habits.map((h) {
-      if (h.id == habitId) {
-        final now = DateTime.now();
-        final completed = !h.isCompletedToday;
+      if (h.id != habitId) return h;
+
+      final completing = !h.isCompletedToday;
+      if (!completing) {
+        final newDates = h.completedDates
+            .where(
+              (d) =>
+                  d.year != todayDate.year ||
+                  d.month != todayDate.month ||
+                  d.day != todayDate.day,
+            )
+            .toList();
         return h.copyWith(
-          isCompletedToday: completed,
-          streak: completed ? h.streak + 1 : h.streak,
-          completedDates: completed
-              ? [...h.completedDates, now]
-              : h.completedDates,
+          isCompletedToday: false,
+          completedDates: newDates,
         );
       }
-      return h;
+
+      final alreadyToday = h.completedDates.any(
+        (d) =>
+            d.year == todayDate.year &&
+            d.month == todayDate.month &&
+            d.day == todayDate.day,
+      );
+      if (alreadyToday) {
+        return h.copyWith(isCompletedToday: true);
+      }
+
+      var newStreak = 1;
+      if (h.completedDates.isNotEmpty) {
+        final sorted = List<DateTime>.from(h.completedDates)..sort();
+        final last = sorted.last;
+        final lastDate = DateTime(last.year, last.month, last.day);
+        if (lastDate == yesterday) {
+          newStreak = h.streak + 1;
+        } else if (lastDate == todayDate) {
+          newStreak = h.streak;
+        }
+      }
+
+      return h.copyWith(
+        isCompletedToday: true,
+        streak: newStreak,
+        completedDates: [...h.completedDates, today],
+      );
     }).toList();
     await _hive.saveHabits(updated);
     await _sync.syncHabits(updated);

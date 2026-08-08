@@ -23,6 +23,8 @@ class AppConstants {
   // XP values
   static const int xpDailyMission = 50;
   static const int xpHabitComplete = 25;
+  static const int xpTaskComplete = 15;
+  static const int xpPhotoVerifyBonus = 15;
   static const int xpStreakBonus = 10;
   static const int xpFocusSession = 30;
 

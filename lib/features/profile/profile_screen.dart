@@ -6,7 +6,10 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../core/constants/route_paths.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/app_utils.dart';
 import '../../providers/app_providers.dart';
+import '../../shared/widgets/achievements_grid.dart';
+import '../../shared/widgets/xp_progress_bar.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -14,7 +17,19 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(userProfileProvider).valueOrNull;
-    final roadmap = ref.watch(roadmapProvider).valueOrNull;
+    final achievements = ref.watch(achievementsProvider);
+    final habits = ref.watch(habitsProvider).valueOrNull ?? [];
+
+    final level = profile?.level ?? 1;
+    final xp = profile?.xp ?? 0;
+    final rank = AppUtils.rankTitle(level);
+
+    final activeDays = <DateTime>{};
+    for (final habit in habits) {
+      for (final date in habit.completedDates) {
+        activeDays.add(DateTime(date.year, date.month, date.day));
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -32,27 +47,57 @@ class ProfileScreen extends ConsumerWidget {
           Center(
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 48,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                  child: Text(
-                    (profile?.identityGoal ?? 'A')[0].toUpperCase(),
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: AppColors.primary,
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    CircleAvatar(
+                      radius: 48,
+                      backgroundColor:
+                          AppColors.primary.withValues(alpha: 0.2),
+                      child: Text(
+                        (profile?.displayName ??
+                                profile?.identityGoal ??
+                                'A')[0]
+                            .toUpperCase(),
+                        style:
+                            Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.xpGold,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Lv $level',
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: Colors.black87,
                         ),
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  profile?.identityGoal ?? 'Your Journey',
+                  profile?.displayName ??
+                      profile?.identityGoal ??
+                      'Your Journey',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Level ${profile?.level ?? 1} • ${profile?.xp ?? 0} XP',
+                  '$rank • $xp XP',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.xpGold,
                         fontWeight: FontWeight.w600,
@@ -61,6 +106,8 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          XpProgressBar(level: level, xp: xp),
           const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
@@ -82,13 +129,22 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: _ProfileStat(
-                  label: 'Progress',
-                  value: '${roadmap?.completionPercent.toInt() ?? 0}%',
-                  icon: '📈',
+                  label: 'Quests Done',
+                  value: '${ref.watch(gamificationServiceProvider).getStats().totalCompletions}',
+                  icon: '⚔️',
                 ),
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Achievements',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AchievementsGrid(achievements: achievements),
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Activity',
@@ -112,33 +168,32 @@ class ProfileScreen extends ConsumerWidget {
                   color: AppColors.primary.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
-                selectedDecoration: const BoxDecoration(
+                markerDecoration: const BoxDecoration(
                   color: AppColors.success,
                   shape: BoxShape.circle,
                 ),
               ),
+              eventLoader: (day) {
+                final key = DateTime(day.year, day.month, day.day);
+                return activeDays.contains(key) ? [key] : [];
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          _MenuTile(
+            icon: Icons.repeat,
+            title: 'Daily Quests',
+            onTap: () => context.push(RoutePaths.habits),
+          ),
           _MenuTile(
             icon: Icons.map_outlined,
             title: 'Roadmap',
             onTap: () => context.push(RoutePaths.roadmap),
           ),
           _MenuTile(
-            icon: Icons.repeat,
-            title: 'Habits',
-            onTap: () => context.push(RoutePaths.habits),
-          ),
-          _MenuTile(
             icon: Icons.book_outlined,
             title: 'Journal',
             onTap: () => context.push(RoutePaths.journal),
-          ),
-          _MenuTile(
-            icon: Icons.image_outlined,
-            title: 'Vision Board',
-            onTap: () => context.push(RoutePaths.visionBoard),
           ),
           const SizedBox(height: AppSpacing.xxl),
         ],

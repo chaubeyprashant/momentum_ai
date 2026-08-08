@@ -24,6 +24,8 @@ enum TaskCategory {
 
   const TaskCategory(this.label);
   final String label;
+
+  bool get skipsPhotoVerification => this == TaskCategory.screenBreak;
 }
 
 /// A scheduled item in the user's daily timetable.
@@ -44,6 +46,7 @@ class ScheduledTask extends Equatable {
     this.verificationConfidence,
     this.verifiedAt,
     this.notificationId,
+    this.missedCallNotificationId,
   });
 
   final String id;
@@ -61,6 +64,26 @@ class ScheduledTask extends Equatable {
   final double? verificationConfidence;
   final DateTime? verifiedAt;
   final int? notificationId;
+  final int? missedCallNotificationId;
+
+  DateTime get deadlineAt =>
+      scheduledAt.add(Duration(minutes: durationMinutes));
+
+  /// Whether the task window has started (user can complete or snap).
+  bool get hasStarted => !DateTime.now().isBefore(scheduledAt);
+
+  bool get canMarkComplete =>
+      hasStarted &&
+      status != TaskStatus.verified &&
+      status != TaskStatus.skipped;
+
+  bool get canSnapNow => hasStarted && canSnapForBonus && photoPath == null;
+
+  String get availabilityMessage {
+    final hour = scheduledAt.hour.toString().padLeft(2, '0');
+    final minute = scheduledAt.minute.toString().padLeft(2, '0');
+    return 'Available at $hour:$minute';
+  }
 
   bool get isToday {
     final now = DateTime.now();
@@ -70,7 +93,46 @@ class ScheduledTask extends Equatable {
   }
 
   bool get isOverdue =>
-      status == TaskStatus.pending && DateTime.now().isAfter(scheduledAt);
+      status == TaskStatus.pending && DateTime.now().isAfter(deadlineAt);
+
+  /// Whether snapping a photo can earn bonus XP for this task.
+  bool get canSnapForBonus =>
+      requiresPhotoVerification &&
+      !category.skipsPhotoVerification &&
+      !titleSuggestsNoPhoto(title);
+
+  static bool titleSuggestsNoPhoto(String title) {
+    final lower = title.toLowerCase();
+    const keywords = [
+      'phone',
+      'mobile',
+      'screen time',
+      'screen-time',
+      'social media',
+      'instagram',
+      'tiktok',
+      'scroll',
+      'digital detox',
+      'offline',
+      'no phone',
+      'less phone',
+      'put phone',
+      'unplug',
+      'device-free',
+      'phone-free',
+      'away from phone',
+    ];
+    return keywords.any(lower.contains);
+  }
+
+  static bool shouldRequirePhoto({
+    required TaskCategory category,
+    required String title,
+  }) {
+    if (category.skipsPhotoVerification) return false;
+    if (titleSuggestsNoPhoto(title)) return false;
+    return true;
+  }
 
   String get verificationPrompt =>
       verificationHint ?? 'User should be doing: $title. ${description ?? ''}';
@@ -91,6 +153,7 @@ class ScheduledTask extends Equatable {
     double? verificationConfidence,
     DateTime? verifiedAt,
     int? notificationId,
+    int? missedCallNotificationId,
   }) {
     return ScheduledTask(
       id: id ?? this.id,
@@ -110,6 +173,8 @@ class ScheduledTask extends Equatable {
           verificationConfidence ?? this.verificationConfidence,
       verifiedAt: verifiedAt ?? this.verifiedAt,
       notificationId: notificationId ?? this.notificationId,
+      missedCallNotificationId:
+          missedCallNotificationId ?? this.missedCallNotificationId,
     );
   }
 
@@ -129,6 +194,7 @@ class ScheduledTask extends Equatable {
         'verificationConfidence': verificationConfidence,
         'verifiedAt': verifiedAt?.toIso8601String(),
         'notificationId': notificationId,
+        'missedCallNotificationId': missedCallNotificationId,
       };
 
   factory ScheduledTask.fromJson(Map<String, dynamic> json) => ScheduledTask(
@@ -152,6 +218,7 @@ class ScheduledTask extends Equatable {
             ? DateTime.parse(json['verifiedAt'] as String)
             : null,
         notificationId: json['notificationId'] as int?,
+        missedCallNotificationId: json['missedCallNotificationId'] as int?,
       );
 
   @override

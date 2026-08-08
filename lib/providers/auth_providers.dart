@@ -108,6 +108,8 @@ final cloudSyncProvider = Provider<void>((ref) {
     if (profile == null || profile.id != user.uid) {
       await HiveService.instance.clearAll();
       await sync.pullFromCloud();
+      if (!ref.exists(userProfileProvider)) return;
+
       ref.invalidate(userProfileProvider);
       ref.invalidate(roadmapProvider);
       ref.invalidate(timetableProvider);

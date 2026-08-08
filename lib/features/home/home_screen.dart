@@ -3,6 +3,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:intl/intl.dart';
+
+import '../../core/constants/app_constants.dart';
 import '../../core/constants/route_paths.dart';
 import '../../core/extensions/context_extensions.dart';
 import '../../core/theme/app_colors.dart';
@@ -10,12 +13,36 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/utils/app_utils.dart';
 import '../../models/scheduled_task.dart';
 import '../../providers/app_providers.dart';
+import '../../shared/widgets/achievements_grid.dart';
 import '../../shared/widgets/coach_message_card.dart';
 import '../../shared/widgets/glass_card.dart';
 import '../../shared/widgets/progress_ring.dart';
+import '../../shared/widgets/quest_habit_card.dart';
+import '../../shared/widgets/xp_progress_bar.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
+
+  Future<void> _toggleQuest(
+    BuildContext context,
+    WidgetRef ref,
+    String habitId,
+  ) async {
+    final result = await ref.read(habitsProvider.notifier).toggle(habitId);
+    await ref.read(userProfileProvider.notifier).load();
+    if (!context.mounted) return;
+
+    if (result.hasRewards) {
+      showGamificationReward(
+        context,
+        xpEarned: result.xpEarned,
+        leveledUp: result.leveledUp,
+        newLevel: result.newLevel,
+        achievements: result.newAchievements,
+        messages: result.messages,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,10 +51,14 @@ class HomeScreen extends ConsumerWidget {
     final coachAsync = ref.watch(coachMessageProvider);
     final analyticsAsync = ref.watch(analyticsProvider);
     final timetableAsync = ref.watch(timetableProvider);
+    final habitsAsync = ref.watch(habitsProvider);
+    final gamification = ref.watch(gamificationServiceProvider);
 
     final mission = roadmap?.todaysMission;
     final completion = roadmap?.completionPercent ?? 0;
     final streak = profile?.currentStreak ?? 0;
+    final level = profile?.level ?? 1;
+    final xp = profile?.xp ?? 0;
 
     return Scaffold(
       body: SafeArea(
@@ -70,6 +101,8 @@ class HomeScreen extends ConsumerWidget {
                         StreakBadge(streak: streak),
                       ],
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                    XpProgressBar(level: level, xp: xp, compact: true),
                     const SizedBox(height: AppSpacing.lg),
 
                     // Goal Card
@@ -79,6 +112,57 @@ class HomeScreen extends ConsumerWidget {
                       motivation: profile?.motivation,
                       completion: completion,
                     ).animate().fadeIn().slideY(begin: 0.05),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Daily Quests
+                    habitsAsync.when(
+                      data: (habits) {
+                        final completed =
+                            habits.where((h) => h.isCompletedToday).length;
+                        final percent = gamification.dailyQuestProgress(habits);
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: DailyQuestHeader(
+                                    completed: completed,
+                                    total: habits.length,
+                                    percent: percent,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      context.push(RoutePaths.habits),
+                                  child: const Text('All quests'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            ...habits.take(3).map(
+                                  (habit) => QuestHabitCard(
+                                    habit: habit,
+                                    onToggle: () =>
+                                        _toggleQuest(context, ref, habit.id),
+                                  ),
+                                ),
+                            if (habits.length > 3)
+                              TextButton(
+                                onPressed: () =>
+                                    context.push(RoutePaths.habits),
+                                child: Text(
+                                  'View ${habits.length - 3} more quests',
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
 
                     const SizedBox(height: AppSpacing.md),
 
@@ -130,7 +214,7 @@ class HomeScreen extends ConsumerWidget {
                                 SizedBox(width: AppSpacing.md),
                                 Expanded(
                                   child: Text(
-                                    'Set up your daily timetable with AI reminders & photo verification',
+                                    'Set up your daily timetable with AI reminders',
                                   ),
                                 ),
                               ],
@@ -149,19 +233,80 @@ class HomeScreen extends ConsumerWidget {
                                 leading: Icon(
                                   task.status == TaskStatus.verified
                                       ? Icons.check_circle
-                                      : Icons.camera_alt_outlined,
+                                      : Icons.touch_app_outlined,
                                   color: task.status == TaskStatus.verified
                                       ? AppColors.success
                                       : AppColors.primary,
                                 ),
                                 title: Text(task.title),
                                 subtitle: Text(
-                                  '${task.scheduledAt.hour.toString().padLeft(2, '0')}:${task.scheduledAt.minute.toString().padLeft(2, '0')} • Snap photo to verify',
+                                  task.hasStarted
+                                      ? '${DateFormat.jm().format(task.scheduledAt)} • '
+                                          'Tap to complete (+${AppConstants.xpTaskComplete} XP)'
+                                          '${task.canSnapForBonus ? ', snap for +${AppConstants.xpPhotoVerifyBonus} bonus' : ''}'
+                                      : task.availabilityMessage,
                                 ),
-                                trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                                onTap: () => context.push(
-                                  '${RoutePaths.taskVerify}/${task.id}',
-                                ),
+                                trailing: task.canSnapForBonus &&
+                                        task.canSnapNow
+                                    ? IconButton(
+                                        icon: const Icon(
+                                          Icons.camera_alt_outlined,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => context.push(
+                                          '${RoutePaths.taskVerify}/${task.id}',
+                                        ),
+                                      )
+                                    : task.hasStarted &&
+                                            task.status != TaskStatus.verified
+                                        ? const Icon(
+                                            Icons.check_circle_outline,
+                                            size: 14,
+                                          )
+                                        : Text(
+                                            DateFormat.jm()
+                                                .format(task.scheduledAt),
+                                            style: TextStyle(
+                                              color: AppColors.warning
+                                                  .withValues(alpha: 0.9),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                onTap: task.status == TaskStatus.verified
+                                    ? (task.canSnapNow
+                                        ? () => context.push(
+                                              '${RoutePaths.taskVerify}/${task.id}',
+                                            )
+                                        : null)
+                                    : task.canMarkComplete
+                                        ? () async {
+                                            final result = await ref
+                                                .read(
+                                                  timetableProvider.notifier,
+                                                )
+                                                .markComplete(task.id);
+                                            ref.invalidate(userProfileProvider);
+                                            if (!context.mounted) return;
+                                            if (result.hasRewards) {
+                                              showGamificationReward(
+                                                context,
+                                                xpEarned: result.xpEarned,
+                                                leveledUp: result.leveledUp,
+                                                newLevel: result.newLevel,
+                                                achievements:
+                                                    result.newAchievements,
+                                                messages: result.messages,
+                                              );
+                                            } else {
+                                              context.showSnackBar(
+                                                'Marked complete!',
+                                              );
+                                            }
+                                          }
+                                        : () => context.showSnackBar(
+                                              task.availabilityMessage,
+                                            ),
                               ),
                             );
                           }).toList(),
