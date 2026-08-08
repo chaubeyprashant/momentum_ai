@@ -4,6 +4,8 @@ class AppConstants {
 
   static const String appName = 'HabitCoach AI';
   static const String appTagline = 'Your daily coach for everyone.';
+  static const String appVersion = '1.0.1';
+  static const String supportEmail = 'habitcoach.ai.support@gmail.com';
 
   // Hive box names
   static const String userBox = 'user_box';

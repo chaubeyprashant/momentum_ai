@@ -343,7 +343,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
           ),
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<TaskCategory>(
-            value: _category,
+            initialValue: _category,
             decoration: const InputDecoration(labelText: 'Category'),
             items: TaskCategory.values
                 .map((c) => DropdownMenuItem(value: c, child: Text(c.label)))

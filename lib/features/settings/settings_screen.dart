@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/constants/route_paths.dart';
 import '../../core/errors/app_exception.dart';
 import '../../core/extensions/context_extensions.dart';
@@ -105,6 +106,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             value: true,
             onChanged: (_) {},
           ),
+          const _SectionHeader('Feedback'),
+          ListTile(
+            leading: const Icon(Icons.feedback_outlined),
+            title: const Text('Send Feedback'),
+            subtitle: const Text('Report bugs, request features, share ideas'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(RoutePaths.feedback),
+          ),
           const _SectionHeader('Data & Privacy'),
           ListTile(
             leading: const Icon(Icons.download_outlined),
@@ -130,7 +139,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('App Version'),
-            trailing: const Text('1.0.0', style: TextStyle(color: Colors.grey)),
+            trailing: const Text(AppConstants.appVersion, style: TextStyle(color: Colors.grey)),
           ),
           ListTile(
             leading: const Icon(Icons.star_outline),

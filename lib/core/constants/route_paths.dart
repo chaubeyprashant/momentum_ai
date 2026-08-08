@@ -23,4 +23,5 @@ class RoutePaths {
   static const String taskVerify = '/task-verify';
   static const String screenTime = '/screen-time';
   static const String privacyPolicy = '/privacy-policy';
+  static const String feedback = '/feedback';
 }

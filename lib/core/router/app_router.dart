@@ -10,6 +10,7 @@ import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../features/chat/chat_screen.dart';
 import '../../features/coach/coach_screen.dart';
+import '../../features/feedback/feedback_screen.dart';
 import '../../features/focus/focus_screen.dart';
 import '../../features/habits/habits_screen.dart';
 import '../../features/home/home_screen.dart';
@@ -190,6 +191,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.privacyPolicy,
         builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.feedback,
+        builder: (context, state) => const FeedbackScreen(),
       ),
     ],
   );

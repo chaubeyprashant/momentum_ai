@@ -12,6 +12,7 @@ import '../models/scheduled_task.dart';
 import '../models/screen_time.dart';
 import '../services/ai/ai_service.dart';
 import '../services/ai/gemini_config.dart';
+import '../services/feedback/feedback_service.dart';
 import '../services/firebase/firestore_service.dart';
 import '../services/firebase/user_sync_service.dart';
 import '../services/storage/hive_service.dart';
@@ -39,6 +40,10 @@ final screenTimeRepositoryProvider = Provider<ScreenTimeRepository>((ref) {
 
 final geminiConfiguredProvider = FutureProvider<bool>((ref) async {
   return GeminiConfig.isConfigured;
+});
+
+final feedbackServiceProvider = Provider<FeedbackService>((ref) {
+  return FeedbackService();
 });
 
 final firestoreServiceProvider = Provider<FirestoreService>((ref) {
