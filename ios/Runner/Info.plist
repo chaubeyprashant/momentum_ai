@@ -66,10 +66,25 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>HabitCoach needs camera access to verify you completed your scheduled tasks.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HabitCoach needs photo access to verify task completion.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>
 		<string>http</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.41932458800-jerntmbkku8an7psncbglst21eh6l06s</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

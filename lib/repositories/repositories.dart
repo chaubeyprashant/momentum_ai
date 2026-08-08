@@ -3,18 +3,25 @@ import '../../models/goal.dart';
 import '../../models/habit.dart';
 import '../../models/user_profile.dart';
 import '../services/ai/ai_service.dart';
+import '../services/firebase/user_sync_service.dart';
 import '../services/storage/hive_service.dart';
 
-/// User profile repository — local Hive with Firestore sync ready.
+/// User profile repository — Hive cache with Firestore sync.
 class UserRepository {
-  UserRepository({HiveService? hive}) : _hive = hive ?? HiveService.instance;
+  UserRepository({
+    HiveService? hive,
+    UserSyncService? sync,
+  })  : _hive = hive ?? HiveService.instance,
+        _sync = sync ?? UserSyncService();
 
   final HiveService _hive;
+  final UserSyncService _sync;
 
   Future<UserProfile?> getProfile() async => _hive.getUserProfile();
 
   Future<void> saveProfile(UserProfile profile) async {
     await _hive.saveUserProfile(profile);
+    await _sync.syncProfile(profile);
   }
 
   Future<bool> isOnboardingComplete() async {
@@ -25,23 +32,30 @@ class UserRepository {
 
 /// Goals and roadmap repository.
 class GoalRepository {
-  GoalRepository({HiveService? hive, AiService? ai})
-      : _hive = hive ?? HiveService.instance,
-        _ai = ai ?? AiService();
+  GoalRepository({
+    HiveService? hive,
+    AiService? ai,
+    UserSyncService? sync,
+  })  : _hive = hive ?? HiveService.instance,
+        _ai = ai ?? AiService(),
+        _sync = sync ?? UserSyncService();
 
   final HiveService _hive;
   final AiService _ai;
+  final UserSyncService _sync;
 
   Future<Roadmap?> getRoadmap() async => _hive.getRoadmap();
 
   Future<Roadmap> generateRoadmap(UserProfile profile) async {
     final roadmap = await _ai.generateRoadmap(profile);
     await _hive.saveRoadmap(roadmap);
+    await _sync.syncRoadmap(roadmap);
     return roadmap;
   }
 
   Future<void> saveRoadmap(Roadmap roadmap) async {
     await _hive.saveRoadmap(roadmap);
+    await _sync.syncRoadmap(roadmap);
   }
 
   Future<Roadmap> completeMission(String missionId) async {
@@ -86,10 +100,14 @@ class GoalRepository {
 
 /// Accountability check-in repository.
 class AccountabilityRepository {
-  AccountabilityRepository({HiveService? hive})
-      : _hive = hive ?? HiveService.instance;
+  AccountabilityRepository({
+    HiveService? hive,
+    UserSyncService? sync,
+  })  : _hive = hive ?? HiveService.instance,
+        _sync = sync ?? UserSyncService();
 
   final HiveService _hive;
+  final UserSyncService _sync;
 
   Future<List<AccountabilityRecord>> getRecords() async =>
       _hive.getAccountabilityRecords();
@@ -104,6 +122,7 @@ class AccountabilityRepository {
     );
     records.add(record);
     await _hive.saveAccountabilityRecords(records);
+    await _sync.syncAccountability(records);
   }
 
   int getConsecutiveSkips(List<AccountabilityRecord> records) {
@@ -173,9 +192,14 @@ class AnalyticsRepository {
 
 /// Habit tracking repository.
 class HabitRepository {
-  HabitRepository({HiveService? hive}) : _hive = hive ?? HiveService.instance;
+  HabitRepository({
+    HiveService? hive,
+    UserSyncService? sync,
+  })  : _hive = hive ?? HiveService.instance,
+        _sync = sync ?? UserSyncService();
 
   final HiveService _hive;
+  final UserSyncService _sync;
 
   Future<List<Habit>> getHabits() async => _hive.getHabits();
 
@@ -196,24 +220,30 @@ class HabitRepository {
       return h;
     }).toList();
     await _hive.saveHabits(updated);
+    await _sync.syncHabits(updated);
   }
 
   Future<void> resetDailyHabits() async {
     final habits = await getHabits();
-    await _hive.saveHabits(
-      habits.map((h) => h.copyWith(isCompletedToday: false)).toList(),
-    );
+    final updated = habits.map((h) => h.copyWith(isCompletedToday: false)).toList();
+    await _hive.saveHabits(updated);
+    await _sync.syncHabits(updated);
   }
 }
 
 /// Journal repository.
 class JournalRepository {
-  JournalRepository({HiveService? hive, AiService? ai})
-      : _hive = hive ?? HiveService.instance,
-        _ai = ai ?? AiService();
+  JournalRepository({
+    HiveService? hive,
+    AiService? ai,
+    UserSyncService? sync,
+  })  : _hive = hive ?? HiveService.instance,
+        _ai = ai ?? AiService(),
+        _sync = sync ?? UserSyncService();
 
   final HiveService _hive;
   final AiService _ai;
+  final UserSyncService _sync;
 
   Future<List<JournalEntry>> getEntries() async => _hive.getJournalEntries();
 
@@ -221,6 +251,7 @@ class JournalRepository {
     final entries = await getEntries();
     entries.add(entry);
     await _hive.saveJournalEntries(entries);
+    await _sync.syncJournal(entries);
   }
 
   Future<String> generateWeeklySummary(UserProfile profile) async {

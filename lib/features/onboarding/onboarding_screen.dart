@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/constants/route_paths.dart';
 import '../../core/extensions/context_extensions.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/app_logger.dart';
 import '../../models/user_profile.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../../shared/widgets/coach_message_card.dart';
 
 class OnboardingScreen extends HookConsumerWidget {
@@ -20,6 +21,7 @@ class OnboardingScreen extends HookConsumerWidget {
     final currentPage = useState(0);
     final isLoading = useState(false);
 
+    final goalCategory = useState<GoalCategory?>(null);
     final identityGoal = useState('');
     final deadline = useState<GoalDeadline?>(null);
     final customDeadlineDays = useState<int?>(null);
@@ -30,10 +32,12 @@ class OnboardingScreen extends HookConsumerWidget {
 
     final steps = [
       _StepData(
-        title: 'What do you want to become?',
-        subtitle: 'Think identity, not just goals',
-        child: _IdentityStep(
+        title: 'What are you working on?',
+        subtitle: 'Students, parents, professionals — everyone\'s welcome',
+        child: _GoalStep(
+          category: goalCategory.value,
           value: identityGoal.value,
+          onCategory: (c) => goalCategory.value = c,
           onChanged: (v) => identityGoal.value = v,
         ),
       ),
@@ -48,8 +52,8 @@ class OnboardingScreen extends HookConsumerWidget {
         ),
       ),
       _StepData(
-        title: 'Current skill level?',
-        subtitle: 'Be honest — we\'ll adapt to you',
+        title: 'How familiar are you?',
+        subtitle: 'We\'ll match the pace to you',
         child: _SkillLevelStep(
           selected: skillLevel.value,
           onSelected: (s) => skillLevel.value = s,
@@ -78,7 +82,8 @@ class OnboardingScreen extends HookConsumerWidget {
     bool canProceed() {
       switch (currentPage.value) {
         case 0:
-          return identityGoal.value.trim().length >= 3;
+          return goalCategory.value != null &&
+              identityGoal.value.trim().length >= 3;
         case 1:
           if (deadline.value == null) return false;
           if (deadline.value == GoalDeadline.custom) {
@@ -103,19 +108,33 @@ class OnboardingScreen extends HookConsumerWidget {
     Future<void> completeOnboarding() async {
       isLoading.value = true;
       try {
+        final userId = ref.read(authServiceProvider).currentUser?.uid;
         final profile = UserProfile(
-          id: const Uuid().v4(),
+          id: userId ?? DateTime.now().millisecondsSinceEpoch.toString(),
           identityGoal: identityGoal.value.trim(),
+          goalCategory: goalCategory.value ?? GoalCategory.habits,
           deadline: deadline.value!,
           skillLevel: skillLevel.value!,
           dailyHours: dailyHours.value!,
           motivation: motivation.value.trim(),
           customDeadlineDays: customDeadlineDays.value,
           customDailyHours: customDailyHours.value,
+          displayName: ref.read(authServiceProvider).currentUser?.displayName,
         );
 
         await ref.read(userProfileProvider.notifier).completeOnboarding(profile);
         await ref.read(roadmapProvider.notifier).generate(profile);
+        try {
+          await ref.read(timetableProvider.notifier).generateFromProfile(profile);
+          AppLogger.info('Onboarding', 'Timetable generated during onboarding');
+        } catch (e, stack) {
+          AppLogger.warning(
+            'Onboarding',
+            'Timetable generation skipped/failed — user can add Gemini key in Settings',
+            e,
+            stack,
+          );
+        }
 
         if (context.mounted) {
           context.go(RoutePaths.home);
@@ -125,7 +144,9 @@ class OnboardingScreen extends HookConsumerWidget {
           context.showSnackBar('Something went wrong. Please try again.', isError: true);
         }
       } finally {
-        isLoading.value = false;
+        if (context.mounted) {
+          isLoading.value = false;
+        }
       }
     }
 
@@ -233,54 +254,80 @@ class _StepData {
   final Widget child;
 }
 
-class _IdentityStep extends StatelessWidget {
-  const _IdentityStep({required this.value, required this.onChanged});
+class _GoalStep extends StatelessWidget {
+  const _GoalStep({
+    required this.category,
+    required this.value,
+    required this.onCategory,
+    required this.onChanged,
+  });
 
+  final GoalCategory? category;
   final String value;
+  final ValueChanged<GoalCategory> onCategory;
   final ValueChanged<String> onChanged;
 
-  static const _suggestions = [
-    'Software Engineer',
-    'AI Engineer',
-    'IAS Officer',
-    'Doctor',
-    'Athlete',
-    'Entrepreneur',
-    'Product Manager',
-    'Data Scientist',
-  ];
+  static const _suggestions = {
+    GoalCategory.health: ['Exercise daily', 'Eat healthier', 'Sleep better', 'Drink more water'],
+    GoalCategory.habits: ['Wake up early', 'Read daily', 'Meditate', 'Journal'],
+    GoalCategory.learning: ['Learn a language', 'Study for exams', 'Learn coding', 'Read books'],
+    GoalCategory.productivity: ['Stay organized', 'Finish projects', 'Plan my day'],
+    GoalCategory.creativity: ['Draw daily', 'Write a book', 'Learn music', 'Photography'],
+    GoalCategory.relationships: ['Family time', 'Call parents', 'Be more present'],
+    GoalCategory.screenTime: ['Less phone use', 'No social media mornings', 'Digital detox'],
+    GoalCategory.career: ['Get a new job', 'Build skills', 'Start a business'],
+    GoalCategory.other: ['Build confidence', 'Be more consistent', 'Improve myself'],
+  };
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          onChanged: onChanged,
-          decoration: const InputDecoration(
-            hintText: 'e.g. AI Engineer',
-            prefixIcon: Icon(Icons.flag_outlined),
+    final suggestions = category != null ? _suggestions[category]! : <String>[];
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Choose a category', style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: GoalCategory.values.map((c) {
+              return FilterChip(
+                label: Text(c.label),
+                selected: category == c,
+                onSelected: (_) => onCategory(c),
+              );
+            }).toList(),
           ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Text(
-          'Popular choices',
-          style: Theme.of(context).textTheme.labelLarge,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: _suggestions.map((s) {
-            final selected = value == s;
-            return FilterChip(
-              label: Text(s),
-              selected: selected,
-              onSelected: (_) => onChanged(s),
-            );
-          }).toList(),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.lg),
+          TextField(
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: category == GoalCategory.screenTime
+                  ? 'e.g. Limit phone to 2 hours'
+                  : 'e.g. ${suggestions.isNotEmpty ? suggestions.first : "Your goal"}',
+              prefixIcon: const Icon(Icons.flag_outlined),
+            ),
+          ),
+          if (suggestions.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Text('Ideas', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: suggestions.map((s) {
+                return FilterChip(
+                  label: Text(s),
+                  selected: value == s,
+                  onSelected: (_) => onChanged(s),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

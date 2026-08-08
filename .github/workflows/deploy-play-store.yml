@@ -1,0 +1,113 @@
+# Deploy HabitCoach AI to Google Play Store
+#
+# Required GitHub repository secrets:
+#   ANDROID_KEYSTORE_BASE64       - Base64-encoded upload-keystore.jks
+#   ANDROID_KEYSTORE_PASSWORD     - Keystore password
+#   ANDROID_KEY_ALIAS             - Key alias (e.g. upload)
+#   ANDROID_KEY_PASSWORD          - Key password
+#   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON - Play Console service account JSON
+#   GEMINI_SECRETS_JSON           - Contents of config/secrets.json (Gemini API key)
+#
+# One-time Play Console setup:
+#   1. Create app with package name: io.habitcoach.ai
+#   2. Settings → API access → Link Google Cloud project
+#   3. Create service account with "Release to production" (or admin) role
+#   4. Download JSON key → add as GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret
+#
+# Generate keystore (run once locally):
+#   keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 \
+#     -validity 10000 -alias upload
+#   base64 -i upload-keystore.jks | pbcopy   # paste into ANDROID_KEYSTORE_BASE64
+
+name: Deploy to Google Play
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Play Store track
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+
+concurrency:
+  group: play-store-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & Upload AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Create secrets.json for build
+        env:
+          GEMINI_SECRETS_JSON: ${{ secrets.GEMINI_SECRETS_JSON }}
+        run: |
+          if [ -z "$GEMINI_SECRETS_JSON" ]; then
+            echo "::error::GEMINI_SECRETS_JSON secret is not set"
+            exit 1
+          fi
+          mkdir -p config
+          echo "$GEMINI_SECRETS_JSON" > config/secrets.json
+
+      - name: Decode Android keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
+      - name: Build App Bundle
+        run: |
+          flutter build appbundle \
+            --release \
+            --build-number=${{ github.run_number }} \
+            --dart-define-from-file=config/secrets.json
+
+      - name: Upload to Google Play
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: io.habitcoach.ai
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: ${{ github.event.inputs.track || 'internal' }}
+          status: completed

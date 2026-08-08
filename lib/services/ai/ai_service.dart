@@ -3,16 +3,19 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 
 import '../../core/errors/app_exception.dart';
+import '../../core/utils/app_logger.dart';
 import '../../models/accountability.dart';
 import '../../models/goal.dart';
 import '../../models/habit.dart';
 import '../../models/user_profile.dart';
 import 'ai_provider.dart';
+import 'adaptive_ai_provider.dart';
 import 'ai_prompts.dart';
 
 /// High-level AI service orchestrating coach, roadmap, and analytics AI.
 class AiService {
-  AiService({AiProvider? provider}) : _provider = provider ?? MockAiProvider();
+  AiService({AiProvider? provider})
+      : _provider = provider ?? AdaptiveAiProvider();
 
   final AiProvider _provider;
   final _uuid = const Uuid();
@@ -56,7 +59,8 @@ class AiService {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.warning('AI', 'Roadmap generation failed, using fallback', e, stack);
       return _fallbackRoadmap(profile);
     }
   }
@@ -92,7 +96,8 @@ class AiService {
         type: type,
         timestamp: DateTime.now(),
       );
-    } catch (_) {
+    } catch (e, stack) {
+      AppLogger.warning('AI', 'Coach message failed, using fallback (${e.toString().split('\n').first})', e, stack);
       return CoachMessage(
         id: _uuid.v4(),
         message: _fallbackCoachMessage(

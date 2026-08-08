@@ -7,6 +7,8 @@ import '../../core/constants/app_constants.dart';
 import '../../core/constants/route_paths.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
+import '../../services/firebase/firebase_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -28,6 +30,30 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     await ref.read(userProfileProvider.notifier).load();
     if (!mounted) return;
+
+    final firebaseReady = FirebaseService.instance.isInitialized;
+    if (firebaseReady) {
+      final authState = ref.read(authStateProvider);
+      await authState.when(
+        data: (_) async {},
+        loading: () async {
+          await ref.read(authStateProvider.future);
+        },
+        error: (_, __) async {},
+      );
+      if (!mounted) return;
+
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user == null) {
+        context.go(RoutePaths.login);
+        return;
+      }
+
+      // Pull user data from Firestore on app start
+      await ref.read(userSyncServiceProvider).pullFromCloud();
+      await ref.read(userProfileProvider.notifier).load();
+      if (!mounted) return;
+    }
 
     final profile = ref.read(userProfileProvider).valueOrNull;
     if (!mounted) return;

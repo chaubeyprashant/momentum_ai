@@ -51,3 +51,7 @@ app.*.map.json
 *.jks
 *.keystore
 key.properties
+
+# Local secrets (API keys)
+config/secrets.json
+secrets.env

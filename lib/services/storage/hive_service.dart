@@ -4,10 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/errors/app_exception.dart';
 import '../../models/accountability.dart';
 import '../../models/goal.dart';
 import '../../models/habit.dart';
+import '../../models/scheduled_task.dart';
+import '../../models/screen_time.dart';
 import '../../models/user_profile.dart';
 
 /// Hive-backed local storage service.
@@ -30,6 +31,7 @@ class HiveService {
         Hive.openBox(AppConstants.habitsBox),
         Hive.openBox(AppConstants.journalBox),
         Hive.openBox(AppConstants.settingsBox),
+        Hive.openBox(AppConstants.tasksBox),
       ]);
     } catch (e, stack) {
       // Keep error logging for robustness
@@ -44,6 +46,7 @@ class HiveService {
   Box get _habitsBox => Hive.box(AppConstants.habitsBox);
   Box get _journalBox => Hive.box(AppConstants.journalBox);
   Box get _settingsBox => Hive.box(AppConstants.settingsBox);
+  Box get _tasksBox => Hive.box(AppConstants.tasksBox);
 
   // User Profile
   Future<void> saveUserProfile(UserProfile profile) async {
@@ -139,6 +142,48 @@ class HiveService {
   String? getLastCoachMessage() =>
       _settingsBox.get('last_coach_message') as String?;
 
+  // Scheduled tasks
+  Future<void> saveScheduledTasks(List<ScheduledTask> tasks) async {
+    await _tasksBox.put(
+      'tasks',
+      tasks.map((t) => t.toJson()).toList(),
+    );
+  }
+
+  List<ScheduledTask> getScheduledTasks() {
+    final data = _tasksBox.get('tasks') as List<dynamic>?;
+    if (data == null) return [];
+    return data
+        .map((t) => ScheduledTask.fromJson(t as Map<String, dynamic>))
+        .toList();
+  }
+
+  // Screen time
+  Future<void> saveScreenTimeGoal(ScreenTimeGoal goal) async {
+    await _settingsBox.put('screen_time_goal', goal.toJson());
+  }
+
+  ScreenTimeGoal getScreenTimeGoal() {
+    final data = _settingsBox.get('screen_time_goal') as Map<dynamic, dynamic>?;
+    if (data == null) return const ScreenTimeGoal();
+    return ScreenTimeGoal.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  Future<void> saveScreenTimeLogs(List<ScreenTimeLog> logs) async {
+    await _settingsBox.put(
+      'screen_time_logs',
+      logs.map((l) => l.toJson()).toList(),
+    );
+  }
+
+  List<ScreenTimeLog> getScreenTimeLogs() {
+    final data = _settingsBox.get('screen_time_logs') as List<dynamic>?;
+    if (data == null) return [];
+    return data
+        .map((l) => ScreenTimeLog.fromJson(l as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<void> clearAll() async {
     await Future.wait([
       _userBox.clear(),
@@ -146,6 +191,7 @@ class HiveService {
       _habitsBox.clear(),
       _journalBox.clear(),
       _settingsBox.clear(),
+      _tasksBox.clear(),
     ]);
   }
 
@@ -156,24 +202,4 @@ class HiveService {
         const Habit(id: '4', name: 'Reading', icon: '📚'),
         const Habit(id: '5', name: 'Water Intake', icon: '💧'),
       ];
-}
-
-/// Firebase initialization wrapper — enable when config files are added.
-class FirebaseService {
-  FirebaseService._();
-  static final FirebaseService instance = FirebaseService._();
-
-  bool _initialized = false;
-  bool get isInitialized => _initialized;
-
-  Future<void> init() async {
-    if (_initialized) return;
-    try {
-      // await Firebase.initializeApp();
-      // FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-      _initialized = false; // Set true after Firebase config
-    } catch (e) {
-      throw StorageException('Firebase init failed: $e');
-    }
-  }
 }

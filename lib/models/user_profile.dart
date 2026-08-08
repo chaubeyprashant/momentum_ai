@@ -2,12 +2,28 @@ import 'package:equatable/equatable.dart';
 
 /// User skill level during onboarding.
 enum SkillLevel {
-  beginner('Beginner'),
-  intermediate('Intermediate'),
-  advanced('Advanced'),
-  professional('Professional');
+  beginner('Just starting'),
+  intermediate('Some experience'),
+  advanced('Comfortable'),
+  professional('Very experienced');
 
   const SkillLevel(this.label);
+  final String label;
+}
+
+/// Broad goal category for all audiences.
+enum GoalCategory {
+  health('Health & Fitness'),
+  habits('Daily Habits'),
+  learning('Study & Learning'),
+  productivity('Productivity'),
+  creativity('Creative Pursuits'),
+  relationships('Family & Relationships'),
+  screenTime('Reduce Screen Time'),
+  career('Career & Work'),
+  other('Something Else');
+
+  const GoalCategory(this.label);
   final String label;
 }
 
@@ -90,10 +106,12 @@ class UserProfile extends Equatable {
     this.currentStreak = 0,
     this.longestStreak = 0,
     this.aiPersonality = AiPersonality.supportiveCoach,
+    this.goalCategory = GoalCategory.habits,
   });
 
   final String id;
   final String identityGoal;
+  final GoalCategory goalCategory;
   final GoalDeadline deadline;
   final SkillLevel skillLevel;
   final DailyHours dailyHours;
@@ -133,10 +151,12 @@ class UserProfile extends Equatable {
     int? currentStreak,
     int? longestStreak,
     AiPersonality? aiPersonality,
+    GoalCategory? goalCategory,
   }) {
     return UserProfile(
       id: id ?? this.id,
       identityGoal: identityGoal ?? this.identityGoal,
+      goalCategory: goalCategory ?? this.goalCategory,
       deadline: deadline ?? this.deadline,
       skillLevel: skillLevel ?? this.skillLevel,
       dailyHours: dailyHours ?? this.dailyHours,
@@ -171,6 +191,7 @@ class UserProfile extends Equatable {
         'currentStreak': currentStreak,
         'longestStreak': longestStreak,
         'aiPersonality': aiPersonality.name,
+        'goalCategory': goalCategory.name,
       };
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
@@ -193,6 +214,8 @@ class UserProfile extends Equatable {
         longestStreak: json['longestStreak'] as int? ?? 0,
         aiPersonality: AiPersonality.values
             .byName(json['aiPersonality'] as String? ?? 'supportiveCoach'),
+        goalCategory: GoalCategory.values
+            .byName(json['goalCategory'] as String? ?? 'habits'),
       );
 
   @override

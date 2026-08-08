@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "41932458800",
+    "project_id": "habitcoach-7c9d4",
+    "storage_bucket": "habitcoach-7c9d4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:41932458800:android:4571726785385d96a856f5",
+        "android_client_info": {
+          "package_name": "io.habitcoach.ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "41932458800-pclmhh9s79ktp0iqa804au6pkk8akvd1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.habitcoach.ai",
+            "certificate_hash": "0459c37ec1089e681a894cc5d46dab85f7b990f3"
+          }
+        },
+        {
+          "client_id": "41932458800-6eghieojpjc7u0u82oku6givlfob15ds.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAHBsvNUL8x3XgILXaVkgzyIwPVwNiQlGE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "41932458800-6eghieojpjc7u0u82oku6givlfob15ds.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "41932458800-jerntmbkku8an7psncbglst21eh6l06s.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.habitcoachai.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

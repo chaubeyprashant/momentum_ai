@@ -8,6 +8,7 @@ import '../../core/extensions/context_extensions.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/app_utils.dart';
+import '../../models/scheduled_task.dart';
 import '../../providers/app_providers.dart';
 import '../../shared/widgets/coach_message_card.dart';
 import '../../shared/widgets/glass_card.dart';
@@ -22,6 +23,7 @@ class HomeScreen extends ConsumerWidget {
     final roadmap = ref.watch(roadmapProvider).valueOrNull;
     final coachAsync = ref.watch(coachMessageProvider);
     final analyticsAsync = ref.watch(analyticsProvider);
+    final timetableAsync = ref.watch(timetableProvider);
 
     final mission = roadmap?.todaysMission;
     final completion = roadmap?.completionPercent ?? 0;
@@ -40,26 +42,31 @@ class HomeScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppUtils.greeting(),
-                              style: context.textTheme.bodyMedium?.copyWith(
-                                color: context.colorScheme.onSurface
-                                    .withValues(alpha: 0.6),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                AppUtils.greeting(),
+                                style: context.textTheme.bodyMedium?.copyWith(
+                                  color: context.colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
                               ),
-                            ),
-                            Text(
-                              profile?.displayName ??
-                                  profile?.identityGoal ??
-                                  'Champion',
-                              style: context.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
+                              Text(
+                                profile?.displayName ??
+                                    profile?.identityGoal ??
+                                    'Champion',
+                                style: context.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: AppSpacing.sm),
                         StreakBadge(streak: streak),
                       ],
                     ),
@@ -68,6 +75,7 @@ class HomeScreen extends ConsumerWidget {
                     // Goal Card
                     _GoalCard(
                       goal: profile?.identityGoal ?? 'Your Goal',
+                      category: profile?.goalCategory.label,
                       motivation: profile?.motivation,
                       completion: completion,
                     ).animate().fadeIn().slideY(begin: 0.05),
@@ -93,6 +101,77 @@ class HomeScreen extends ConsumerWidget {
                     ),
 
                     const SizedBox(height: AppSpacing.md),
+
+                    // Today's Timetable
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Today\'s Timetable',
+                          style: context.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.push(RoutePaths.timetable),
+                          child: const Text('View all'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    timetableAsync.when(
+                      data: (tasks) {
+                        if (tasks.isEmpty) {
+                          return GlassCard(
+                            onTap: () => context.push(RoutePaths.timetable),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.schedule, color: AppColors.primary),
+                                SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: Text(
+                                    'Set up your daily timetable with AI reminders & photo verification',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        final next = tasks
+                            .where((t) => t.status != TaskStatus.verified)
+                            .toList();
+                        final show = (next.isEmpty ? tasks : next).take(3);
+                        return Column(
+                          children: show.map((task) {
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                              child: ListTile(
+                                leading: Icon(
+                                  task.status == TaskStatus.verified
+                                      ? Icons.check_circle
+                                      : Icons.camera_alt_outlined,
+                                  color: task.status == TaskStatus.verified
+                                      ? AppColors.success
+                                      : AppColors.primary,
+                                ),
+                                title: Text(task.title),
+                                subtitle: Text(
+                                  '${task.scheduledAt.hour.toString().padLeft(2, '0')}:${task.scheduledAt.minute.toString().padLeft(2, '0')} • Snap photo to verify',
+                                ),
+                                trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                                onTap: () => context.push(
+                                  '${RoutePaths.taskVerify}/${task.id}',
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                      loading: () => const LinearProgressIndicator(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
 
                     // Today's Mission
                     Text(
@@ -171,28 +250,28 @@ class HomeScreen extends ConsumerWidget {
                       childAspectRatio: 1.6,
                       children: [
                         _QuickAction(
+                          icon: Icons.schedule,
+                          label: 'Timetable',
+                          color: AppColors.primary,
+                          onTap: () => context.push(RoutePaths.timetable),
+                        ),
+                        _QuickAction(
+                          icon: Icons.phone_android,
+                          label: 'Screen Time',
+                          color: AppColors.accent,
+                          onTap: () => context.push(RoutePaths.screenTime),
+                        ),
+                        _QuickAction(
                           icon: Icons.timer_outlined,
                           label: 'Focus Session',
-                          color: AppColors.primary,
+                          color: AppColors.secondary,
                           onTap: () => context.push(RoutePaths.focus),
                         ),
                         _QuickAction(
                           icon: Icons.chat_outlined,
                           label: 'Ask AI Coach',
-                          color: AppColors.secondary,
-                          onTap: () => context.push(RoutePaths.chat),
-                        ),
-                        _QuickAction(
-                          icon: Icons.check_circle_outline,
-                          label: 'Check-in',
-                          color: AppColors.warning,
-                          onTap: () => context.push(RoutePaths.accountability),
-                        ),
-                        _QuickAction(
-                          icon: Icons.map_outlined,
-                          label: 'My Roadmap',
                           color: AppColors.info,
-                          onTap: () => context.push(RoutePaths.roadmap),
+                          onTap: () => context.push(RoutePaths.chat),
                         ),
                       ],
                     ),
@@ -243,10 +322,12 @@ class _GoalCard extends StatelessWidget {
   const _GoalCard({
     required this.goal,
     required this.completion,
+    this.category,
     this.motivation,
   });
 
   final String goal;
+  final String? category;
   final double completion;
   final String? motivation;
 
@@ -273,7 +354,7 @@ class _GoalCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Becoming',
+                    category ?? 'Your Goal',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: AppColors.primary,
                         ),

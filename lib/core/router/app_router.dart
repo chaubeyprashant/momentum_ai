@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../constants/route_paths.dart';
 import '../../features/accountability/accountability_screen.dart';
 import '../../features/analytics/analytics_screen.dart';
+import '../../features/auth/forgot_password_screen.dart';
+import '../../features/auth/login_screen.dart';
+import '../../features/auth/signup_screen.dart';
 import '../../features/chat/chat_screen.dart';
 import '../../features/coach/coach_screen.dart';
 import '../../features/focus/focus_screen.dart';
@@ -14,38 +17,71 @@ import '../../features/journal/journal_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/roadmap/roadmap_screen.dart';
+import '../../features/screen_time/screen_time_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
+import '../../features/timetable/task_verify_screen.dart';
+import '../../features/timetable/timetable_screen.dart';
 import '../../features/vision_board/vision_board_screen.dart';
 import '../../features/privacy/privacy_policy_screen.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
+import '../../services/firebase/firebase_service.dart';
 
 class GoRouterRefreshNotifier extends ChangeNotifier {
-  GoRouterRefreshNotifier(Ref ref, ProviderListenable provider) {
-    ref.listen(provider, (_, __) => notifyListeners());
+  GoRouterRefreshNotifier(Ref ref, List<ProviderListenable<dynamic>> providers) {
+    for (final provider in providers) {
+      ref.listen(provider, (_, __) => notifyListeners());
+    }
   }
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
+  ref.watch(cloudSyncProvider);
+
   return GoRouter(
     initialLocation: RoutePaths.splash,
-    refreshListenable: GoRouterRefreshNotifier(ref, userProfileProvider),
+    refreshListenable: GoRouterRefreshNotifier(ref, [
+      authStateProvider,
+      userProfileProvider,
+    ]),
     redirect: (context, state) {
+      final firebaseReady = FirebaseService.instance.isInitialized;
+      final authState = ref.read(authStateProvider);
       final profileState = ref.read(userProfileProvider);
+      final location = state.matchedLocation;
+
+      final isSplash = location == RoutePaths.splash;
+      final isAuthRoute = location == RoutePaths.login ||
+          location == RoutePaths.signUp ||
+          location == RoutePaths.forgotPassword;
+      final isOnboarding = location == RoutePaths.onboarding;
+
+      if (isSplash) return null;
+
+      if (firebaseReady) {
+        if (authState.isLoading) return RoutePaths.splash;
+
+        final isLoggedIn = authState.valueOrNull != null;
+
+        if (!isLoggedIn && !isAuthRoute) {
+          return RoutePaths.login;
+        }
+
+        if (isLoggedIn && isAuthRoute) {
+          return RoutePaths.splash;
+        }
+      }
+
       final onboardingComplete = profileState.when(
         data: (profile) => profile?.onboardingComplete ?? false,
         loading: () => null,
         error: (_, __) => false,
       );
 
-      final isSplash = state.matchedLocation == RoutePaths.splash;
-      final isOnboarding = state.matchedLocation == RoutePaths.onboarding;
-
-      if (isSplash) return null;
-
       if (onboardingComplete == null) return RoutePaths.splash;
 
-      if (!onboardingComplete && !isOnboarding) {
+      if (!onboardingComplete && !isOnboarding && !isAuthRoute) {
         return RoutePaths.onboarding;
       }
 
@@ -59,6 +95,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.splash,
         builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.signUp,
+        builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: RoutePaths.onboarding,
@@ -120,6 +168,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.roadmap,
         builder: (context, state) => const RoadmapScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.timetable,
+        builder: (context, state) => const TimetableScreen(),
+      ),
+      GoRoute(
+        path: '${RoutePaths.taskVerify}/:taskId',
+        builder: (context, state) => TaskVerifyScreen(
+          taskId: state.pathParameters['taskId']!,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.screenTime,
+        builder: (context, state) => const ScreenTimeScreen(),
       ),
       GoRoute(
         path: RoutePaths.settings,

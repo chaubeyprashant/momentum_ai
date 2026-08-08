@@ -1,33 +1,79 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
 
 import '../models/accountability.dart';
 import '../models/goal.dart';
 import '../models/habit.dart';
 import '../models/user_profile.dart';
 import '../repositories/repositories.dart';
+import '../repositories/screen_time_repository.dart';
+import '../repositories/task_repository.dart';
+import '../models/scheduled_task.dart';
+import '../models/screen_time.dart';
 import '../services/ai/ai_service.dart';
+import '../services/ai/gemini_config.dart';
+import '../services/firebase/firestore_service.dart';
+import '../services/firebase/user_sync_service.dart';
 import '../services/storage/hive_service.dart';
 
 // Services
 final hiveServiceProvider = Provider<HiveService>((ref) => HiveService.instance);
 
-final aiServiceProvider = Provider<AiService>((ref) => AiService());
+final aiServiceProvider = Provider<AiService>((ref) {
+  return AiService();
+});
+
+final taskRepositoryProvider = Provider<TaskRepository>((ref) {
+  return TaskRepository(
+    hive: ref.watch(hiveServiceProvider),
+    sync: ref.watch(userSyncServiceProvider),
+  );
+});
+
+final screenTimeRepositoryProvider = Provider<ScreenTimeRepository>((ref) {
+  return ScreenTimeRepository(
+    hive: ref.watch(hiveServiceProvider),
+    sync: ref.watch(userSyncServiceProvider),
+  );
+});
+
+final geminiConfiguredProvider = FutureProvider<bool>((ref) async {
+  return GeminiConfig.isConfigured;
+});
+
+final firestoreServiceProvider = Provider<FirestoreService>((ref) {
+  return FirestoreService();
+});
+
+final userSyncServiceProvider = Provider<UserSyncService>((ref) {
+  return UserSyncService(
+    hive: ref.watch(hiveServiceProvider),
+    firestore: ref.watch(firestoreServiceProvider),
+  );
+});
 
 // Repositories
 final userRepositoryProvider = Provider<UserRepository>((ref) {
-  return UserRepository(hive: ref.watch(hiveServiceProvider));
+  return UserRepository(
+    hive: ref.watch(hiveServiceProvider),
+    sync: ref.watch(userSyncServiceProvider),
+  );
 });
 
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
   return GoalRepository(
     hive: ref.watch(hiveServiceProvider),
     ai: ref.watch(aiServiceProvider),
+    sync: ref.watch(userSyncServiceProvider),
   );
 });
 
 final accountabilityRepositoryProvider =
     Provider<AccountabilityRepository>((ref) {
-  return AccountabilityRepository(hive: ref.watch(hiveServiceProvider));
+  return AccountabilityRepository(
+    hive: ref.watch(hiveServiceProvider),
+    sync: ref.watch(userSyncServiceProvider),
+  );
 });
 
 final analyticsRepositoryProvider = Provider<AnalyticsRepository>((ref) {
@@ -38,13 +84,17 @@ final analyticsRepositoryProvider = Provider<AnalyticsRepository>((ref) {
 });
 
 final habitRepositoryProvider = Provider<HabitRepository>((ref) {
-  return HabitRepository(hive: ref.watch(hiveServiceProvider));
+  return HabitRepository(
+    hive: ref.watch(hiveServiceProvider),
+    sync: ref.watch(userSyncServiceProvider),
+  );
 });
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository(
     hive: ref.watch(hiveServiceProvider),
     ai: ref.watch(aiServiceProvider),
+    sync: ref.watch(userSyncServiceProvider),
   );
 });
 
@@ -202,4 +252,107 @@ class OnboardingDraftNotifier extends StateNotifier<UserProfile?> {
   void update(UserProfile profile) => state = profile;
 
   void reset() => state = null;
+}
+
+// Timetable / scheduled tasks
+final timetableProvider =
+    StateNotifierProvider<TimetableNotifier, AsyncValue<List<ScheduledTask>>>((ref) {
+  return TimetableNotifier(ref.watch(taskRepositoryProvider));
+});
+
+class TimetableNotifier extends StateNotifier<AsyncValue<List<ScheduledTask>>> {
+  TimetableNotifier(this._repo) : super(const AsyncValue.loading()) {
+    load();
+  }
+
+  final TaskRepository _repo;
+
+  Future<void> load() async {
+    state = const AsyncValue.loading();
+    await _repo.markMissedTasks();
+    state = AsyncValue.data(await _repo.getTodayTasks());
+  }
+
+  Future<void> addTask(ScheduledTask task) async {
+    await _repo.addTask(task);
+    await load();
+  }
+
+  Future<void> deleteTask(String id) async {
+    await _repo.deleteTask(id);
+    await load();
+  }
+
+  Future<ScheduledTask> verifyTask({
+    required String taskId,
+    required List<int> imageBytes,
+    required String photoPath,
+  }) async {
+    final updated = await _repo.verifyWithPhoto(
+      taskId: taskId,
+      imageBytes: Uint8List.fromList(imageBytes),
+      photoPath: photoPath,
+    );
+    await load();
+    return updated;
+  }
+
+  Future<void> generateFromProfile(UserProfile profile) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repo.generateFromProfile(profile);
+      await load();
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+}
+
+// Screen time
+final screenTimeProvider =
+    StateNotifierProvider<ScreenTimeNotifier, AsyncValue<ScreenTimeState>>((ref) {
+  return ScreenTimeNotifier(ref.watch(screenTimeRepositoryProvider));
+});
+
+class ScreenTimeState {
+  const ScreenTimeState({
+    required this.goal,
+    this.todayLog,
+  });
+
+  final ScreenTimeGoal goal;
+  final ScreenTimeLog? todayLog;
+
+  int get usedMinutes => todayLog?.minutesUsed ?? 0;
+  int get remainingMinutes =>
+      (goal.dailyLimitMinutes - usedMinutes).clamp(0, goal.dailyLimitMinutes);
+  double get percentUsed => goal.dailyLimitMinutes == 0
+      ? 0
+      : (usedMinutes / goal.dailyLimitMinutes * 100).clamp(0, 100);
+}
+
+class ScreenTimeNotifier extends StateNotifier<AsyncValue<ScreenTimeState>> {
+  ScreenTimeNotifier(this._repo) : super(const AsyncValue.loading()) {
+    load();
+  }
+
+  final ScreenTimeRepository _repo;
+
+  Future<void> load() async {
+    state = const AsyncValue.loading();
+    final goal = await _repo.getGoal();
+    final today = await _repo.getTodayLog();
+    state = AsyncValue.data(ScreenTimeState(goal: goal, todayLog: today));
+  }
+
+  Future<void> saveGoal(ScreenTimeGoal goal) async {
+    await _repo.saveGoal(goal);
+    await load();
+  }
+
+  Future<void> logMinutes(int minutes) async {
+    await _repo.logMinutes(minutes: minutes);
+    await load();
+  }
 }

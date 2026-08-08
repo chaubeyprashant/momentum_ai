@@ -3,17 +3,46 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/route_paths.dart';
+import '../../core/errors/app_exception.dart';
+import '../../core/extensions/context_extensions.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../models/user_profile.dart';
 import '../../providers/app_providers.dart';
-import '../../services/storage/hive_service.dart';
+import '../../providers/auth_providers.dart';
+import '../../services/ai/gemini_config.dart';
+import '../../services/firebase/firebase_service.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _aiAvailable = false;
+  String _aiModel = GeminiConfig.defaultModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAiStatus();
+  }
+
+  Future<void> _loadAiStatus() async {
+    final configured = await GeminiConfig.isConfigured;
+    final model = await GeminiConfig.getModel();
+    if (mounted) {
+      setState(() {
+        _aiAvailable = configured;
+        _aiModel = model;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final profile = ref.watch(userProfileProvider).valueOrNull;
 
@@ -21,6 +50,34 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          const _SectionHeader('Account'),
+          if (FirebaseService.instance.isInitialized) ...[
+            ListTile(
+              leading: const Icon(Icons.email_outlined),
+              title: const Text('Signed in as'),
+              subtitle: Text(
+                ref.watch(authServiceProvider).currentUser?.email ?? 'Unknown',
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Sign Out'),
+              onTap: () => _signOut(context, ref),
+            ),
+          ],
+          const _SectionHeader('AI'),
+          ListTile(
+            leading: Icon(
+              _aiAvailable ? Icons.auto_awesome : Icons.cloud_off_outlined,
+              color: _aiAvailable ? Colors.green : null,
+            ),
+            title: const Text('AI Features'),
+            subtitle: Text(
+              _aiAvailable
+                  ? 'Powered by Gemini · $_aiModel'
+                  : 'Unavailable in this build',
+            ),
+          ),
           const _SectionHeader('Appearance'),
           SwitchListTile(
             title: const Text('Dark Mode'),
@@ -38,7 +95,7 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionHeader('Notifications'),
           SwitchListTile(
             title: const Text('Daily Reminders'),
-            subtitle: const Text('Morning mission & evening check-in'),
+            subtitle: const Text('Task reminders from your timetable'),
             value: true,
             onChanged: (_) {},
           ),
@@ -119,6 +176,36 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out?'),
+        content: const Text('You will need to sign in again to access your data.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await ref.read(authControllerProvider.notifier).signOut();
+    ref.invalidate(userProfileProvider);
+    ref.invalidate(roadmapProvider);
+
+    if (context.mounted) {
+      context.go(RoutePaths.login);
+    }
+  }
+
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -141,11 +228,24 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     if (confirmed == true) {
-      await HiveService.instance.clearAll();
-      ref.invalidate(userProfileProvider);
-      ref.invalidate(roadmapProvider);
-      if (context.mounted) {
-        context.go(RoutePaths.onboarding);
+      try {
+        if (FirebaseService.instance.isInitialized) {
+          await ref.read(authControllerProvider.notifier).deleteAccount();
+        } else {
+          await ref.read(authControllerProvider.notifier).signOut();
+        }
+        ref.invalidate(userProfileProvider);
+        ref.invalidate(roadmapProvider);
+        if (context.mounted) {
+          context.go(RoutePaths.login);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          final message = e is AuthException
+              ? e.message
+              : 'Could not delete account. Please try again.';
+          context.showSnackBar(message, isError: true);
+        }
       }
     }
   }

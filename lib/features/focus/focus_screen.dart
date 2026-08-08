@@ -9,6 +9,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../models/habit.dart';
+import '../../providers/app_providers.dart';
 import '../../services/storage/hive_service.dart';
 
 class FocusScreen extends HookConsumerWidget {
@@ -26,6 +27,20 @@ class FocusScreen extends HookConsumerWidget {
       return () => timerRef.value?.cancel();
     }, []);
 
+    Future<void> completeSession(String id, int totalSecs) async {
+      final session = FocusSession(
+        id: id,
+        startedAt: DateTime.now().subtract(Duration(seconds: totalSecs)),
+        endedAt: DateTime.now(),
+        durationMinutes: totalSecs ~/ 60,
+        completed: true,
+      );
+      final hive = HiveService.instance;
+      final sessions = hive.getFocusSessions()..add(session);
+      await hive.saveFocusSessions(sessions);
+      await ref.read(userSyncServiceProvider).syncFocusSessions(sessions);
+    }
+
     void startTimer() {
       sessionId.value = const Uuid().v4();
       isRunning.value = true;
@@ -36,7 +51,7 @@ class FocusScreen extends HookConsumerWidget {
         } else {
           timer.cancel();
           isRunning.value = false;
-          _completeSession(sessionId.value!, totalSeconds.value);
+          completeSession(sessionId.value!, totalSeconds.value);
         }
       });
     }
@@ -168,19 +183,6 @@ class FocusScreen extends HookConsumerWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _completeSession(String id, int totalSeconds) async {
-    final session = FocusSession(
-      id: id,
-      startedAt: DateTime.now().subtract(Duration(seconds: totalSeconds)),
-      endedAt: DateTime.now(),
-      durationMinutes: totalSeconds ~/ 60,
-      completed: true,
-    );
-    final hive = HiveService.instance;
-    final sessions = hive.getFocusSessions()..add(session);
-    await hive.saveFocusSessions(sessions);
   }
 }
 

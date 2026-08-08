@@ -3,7 +3,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'HabitCoach AI';
-  static const String appTagline = 'Build habits. Get coached. Transform.';
+  static const String appTagline = 'Your daily coach for everyone.';
 
   // Hive box names
   static const String userBox = 'user_box';
@@ -11,6 +11,7 @@ class AppConstants {
   static const String habitsBox = 'habits_box';
   static const String journalBox = 'journal_box';
   static const String settingsBox = 'settings_box';
+  static const String tasksBox = 'tasks_box';
 
   // Streak thresholds
   static const int adaptationSkipDays = 3;

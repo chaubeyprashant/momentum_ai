@@ -61,9 +61,11 @@ lib/
 ## Firebase Setup
 
 1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Add Android (`google-services.json`) and iOS (`GoogleService-Info.plist`)
-3. Uncomment `FirebaseService.instance.init()` in `main.dart`
-4. See `docs/firestore_schema.md` for collection structure
+2. Install FlutterFire CLI: `dart pub global activate flutterfire_cli`
+3. Run `flutterfire configure` in the project root (generates `lib/firebase_options.dart` and platform config files)
+4. Enable **Email/Password** and **Google** sign-in under Firebase Console → Authentication → Sign-in method
+5. `FirebaseService.instance.init()` runs automatically in `main.dart`
+6. See `docs/firestore_schema.md` for collection structure
 
 ## AI Provider Setup
 
@@ -86,7 +88,8 @@ AiService(provider: ClaudeAiProvider(apiKey: 'your-key'));
 
 ## Next Features
 
-- [ ] Firebase Auth + Firestore sync
+- [x] Firebase Auth (email/password)
+- [ ] Firestore sync
 - [ ] Push & local notifications
 - [ ] Voice AI
 - [ ] Achievement system (XP, badges, levels)

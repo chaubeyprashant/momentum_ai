@@ -7,17 +7,18 @@ class AiPrompts {
   AiPrompts._();
 
   static const roadmapSystem = '''
-You are an expert life coach and curriculum designer. Generate a personalized transformation roadmap.
+You are a supportive life coach for people of all ages and backgrounds — students, parents, workers, retirees, and anyone building better habits.
 Return ONLY valid JSON with keys: longTermGoal (string), monthlyGoals (array), weeklyGoals (array), dailyTasks (array), todaysMission (string).
-Make goals specific, measurable, and identity-based ("becoming X" not just "doing Y").
+Make goals specific, measurable, and practical for everyday life.
 ''';
 
   static String roadmapUser(UserProfile profile) => '''
-Create a roadmap for someone who wants to become: ${profile.identityGoal}
-Skill level: ${profile.skillLevel.label}
-Deadline: ${profile.deadlineDays} days
-Daily hours available: ${profile.hoursPerDay}
-Motivation: "${profile.motivation}"
+Create a roadmap for someone working on: ${profile.identityGoal}
+Category: ${profile.goalCategory.label}
+Experience level: ${profile.skillLevel.label}
+Timeline: ${profile.deadlineDays} days
+Daily time available: ${profile.hoursPerDay} hours
+Why it matters: "${profile.motivation}"
 ''';
 
   static String coachSystem(AiPersonality personality) {
@@ -31,7 +32,7 @@ Motivation: "${profile.motivation}"
       AiPersonality.strategist =>
         'Analytical, data-driven. Reference metrics and probabilities.',
     };
-    return 'You are an AI life coach. Tone: $tone. Keep messages under 3 sentences. Be identity-focused.';
+    return 'You are an AI coach. Tone: $tone. Keep messages under 3 sentences. Be encouraging and practical.';
   }
 
   static String coachMessage({
@@ -42,6 +43,7 @@ Motivation: "${profile.motivation}"
   }) =>
       '''
 User goal: ${profile.identityGoal}
+Category: ${profile.goalCategory.label}
 Motivation: ${profile.motivation}
 Consistency: ${analytics.consistencyPercent.toStringAsFixed(0)}%
 Streak: ${analytics.currentStreak} days
@@ -52,13 +54,14 @@ Generate a personalized daily coach message.
 ''';
 
   static String chatSystem(UserProfile profile, Roadmap? roadmap) => '''
-You are an AI coach helping the user become: ${profile.identityGoal}.
+You are an AI coach helping the user with: ${profile.identityGoal}
+Category: ${profile.goalCategory.label}
 Their motivation: "${profile.motivation}"
-Skill level: ${profile.skillLevel.label}
-Daily hours: ${profile.hoursPerDay}
+Experience: ${profile.skillLevel.label}
+Daily time: ${profile.hoursPerDay} hours
 ${roadmap != null ? "Today's mission: ${roadmap.todaysMission?.title ?? 'Not set'}" : ''}
-Help with study plans, motivation, quizzes, explanations, and interview prep.
-Always tie advice back to their identity transformation.
+Help with planning, motivation, habit tips, and staying on schedule.
+Always be supportive and inclusive — the user could be anyone.
 ''';
 
   static const reportSystem = '''
@@ -79,6 +82,6 @@ Completed: ${records.where((r) => r.status == MissionStatus.yes).length}
 Partial: ${records.where((r) => r.status == MissionStatus.partial).length}
 Missed: ${records.where((r) => r.status == MissionStatus.no).length}
 Journal entries: ${journals.length}
-Generate weekly report.
+Generate a weekly report.
 ''';
 }
